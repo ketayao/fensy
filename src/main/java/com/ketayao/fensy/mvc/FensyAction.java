@@ -187,8 +187,8 @@ public class FensyAction {
 			}
 			
 			handleReturns(rc, result);
-			if (log.isInfoEnabled()) {
-				log.info("-->requestURI=" + requestURI + ";action=" + action + ";method=" + actionMethod + ";result=" +
+			if (log.isDebugEnabled()) {
+				log.debug("-->requestURI=" + requestURI + ";action=" + action + ";method=" + actionMethod + ";result=" +
 						(result != null ? result.toString():"NULL") + ";args=" + args);
 			}
 			return true;
@@ -239,10 +239,6 @@ public class FensyAction {
 				path = path.replaceAll("\\.", "/");
 				
 				actionClassNames.put(path, name);
-				
-				if (log.isInfoEnabled()) {
-					log.info("path=" + path + "|name=" + name);
-				}
 			}
 		}
 		return actionClassNames;
@@ -254,9 +250,6 @@ public class FensyAction {
 	private void _initActions() {
 		Map<String, String> actionClassNames = new HashMap<String, String>(); 
 		for (String pkg : actionPackages) {
-			if (log.isInfoEnabled()) {
-				log.info("pkg=" + pkg);
-			}
 			Map<String, String> map = _autoScanPackage(pkg);
 			actionClassNames.putAll(map);
 		}
@@ -270,8 +263,8 @@ public class FensyAction {
 			}
 		}
 		
-		if (log.isInfoEnabled()) {
-			log.info("actions.size=" + actions.size());
+		if (log.isDebugEnabled()) {
+			log.debug("actions.size=" + actions.size());
 		}
 	}
 	
@@ -332,14 +325,11 @@ public class FensyAction {
 			if (!actions.containsKey(act_name)) {
 				synchronized (actions) {
 					actions.put(act_name, action);// 加入缓存
-					if (log.isInfoEnabled()) {
-						log.info(act_name + "=" + action.getClass().getName());
-					}
 				}
 			}
 		} catch (ClassNotFoundException excp) {
-			if (log.isInfoEnabled()) {
-				log.info(act_name + ":" + Exceptions.getStackTraceAsString(excp));
+			if (log.isWarnEnabled()) {
+				log.warn(act_name + ":" + Exceptions.getStackTraceAsString(excp));
 			}
 		}
 		return action;

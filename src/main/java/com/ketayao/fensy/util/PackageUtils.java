@@ -35,9 +35,6 @@ public class PackageUtils {
 				dirs.add(new File(URLDecoder.decode(resource.getFile(), "utf-8")));//处理空格等特殊字符
 			} catch (UnsupportedEncodingException e) {
 			}
-			if (log.isDebugEnabled()) {
-				log.debug("resource=" + resource.getPath());
-			}
 		}
 		ArrayList<String> classes = new ArrayList<String>();
 		for (File directory : dirs) {
@@ -58,9 +55,6 @@ public class PackageUtils {
 			} else if (file.getName().endsWith(".class")) {
 				String cn = packageName + '.' + file.getName().substring(0, file.getName().length() - 6);
 				classes.add(cn);
-				if (log.isDebugEnabled()) {
-					log.debug("file=" + file.getPath() + "|className=" + cn);
-				}
 			}
 		}
 		return classes;
