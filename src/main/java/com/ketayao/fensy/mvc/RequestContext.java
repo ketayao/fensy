@@ -3,6 +3,7 @@ package com.ketayao.fensy.mvc;
 import java.io.File;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
+import java.lang.reflect.InvocationTargetException;
 import java.net.URLDecoder;
 import java.net.URLEncoder;
 import java.text.ParseException;
@@ -130,27 +131,21 @@ public class RequestContext {
 
 		rc.response = res;
 		rc.response.setCharacterEncoding(UTF_8);
+		
+		// 保存request_locale参数设置
+		rc.saveLocaleFromRequest();
 
 		rc.session = req.getSession(false); //默认不创建session
 		//rc.session = req.getSession();
 		rc.cookies = new HashMap<String, Cookie>();// 获取cookie
 		Cookie[] cookies = req.getCookies();
-		if (cookies != null)
+		if (cookies != null) {
 			for (Cookie ck : cookies) {
 				rc.cookies.put(ck.getName(), ck);
 			}
-
+		}
 		contexts.set(rc);
 		return rc;
-	}
-
-	/**
-	 * 返回Web应用的路径
-	 * 
-	 * @return
-	 */
-	public static String root() {
-		return webroot;
 	}
 
 	/**
@@ -185,8 +180,8 @@ public class RequestContext {
 	
 	public static final String LOCALE = "___locale";
 	
-	public Locale locale() {
-		Cookie cookie = cookie(LOCALE);
+	public Locale getLocale() {
+		Cookie cookie = getCookie(LOCALE);
 		if (cookie != null) {
 			return LocaleUtils.toLocale(cookie.getValue());
 		}
@@ -194,18 +189,21 @@ public class RequestContext {
 		return request.getLocale();
 	}
 	
-	public void saveLocale() {
-		String request_locale = param("request_locale");
-		if (request_locale != null) {
-			Locale locale = LocaleUtils.toLocale(request_locale);
-			cookie(LOCALE, locale.getLanguage() + "_" + locale.getCountry(), RequestContext.MAX_AGE, true);
+	public void setLocale(String localeValue) {
+		if (localeValue != null) {
+			Locale locale = null;
+			try {
+				locale = LocaleUtils.toLocale(localeValue);
+				setCookie(LOCALE, locale.getLanguage() + "_" + locale.getCountry(), RequestContext.MAX_AGE, true);
+			} catch (Exception e) {
+				log.warn("setLocale is error, localeValue=" + localeValue + "is not used.");
+			}
 		}
 	}
-
-	public void closeCache() {
-		header("Pragma", "No-cache");
-		header("Cache-Control", "no-cache");
-		header("Expires", 0L);
+	
+	public void saveLocaleFromRequest() {
+		String request_locale = getParam("request_locale");
+		setLocale(request_locale);
 	}
 
 	/**
@@ -216,7 +214,7 @@ public class RequestContext {
 	 */
 	private static HttpServletRequest _autoEncodingRequest(
 			HttpServletRequest req) {
-		if (req instanceof requestProxy)
+		if (req instanceof RequestProxy)
 			return req;
 		HttpServletRequest auto_encoding_req = req;
 		if ("POST".equalsIgnoreCase(req.getMethod())) {
@@ -225,7 +223,7 @@ public class RequestContext {
 			} catch (UnsupportedEncodingException e) {
 			}
 		} else if (!isResin)
-			auto_encoding_req = new requestProxy(req, UTF_8);
+			auto_encoding_req = new RequestProxy(req, UTF_8);
 
 		return auto_encoding_req;
 	}
@@ -256,65 +254,46 @@ public class RequestContext {
 		return req;
 	}
 
-	public long id() {
-		return param("id", 0L);
+	public long getId() {
+		return getParam("id", 0L);
+	}
+	
+	public String getIp() {
+		return RequestUtils.getRemoteAddr(request);
 	}
 	
 	public String getQueryString() {
 		return request.getQueryString();
 	}
 
-	public String ip() {
-		return RequestUtils.getRemoteAddr(request);
-	}
-
 	@SuppressWarnings("unchecked")
-	public Enumeration<String> params() {
+	public Enumeration<String> getParams() {
 		return request.getParameterNames();
 	}
 	
-	public String param(String name) {
+	public String getParam(String name) {
 		return request.getParameter(name);
 	}
 
-	public String param(String name, String... def_value) {
+	public String getParam(String name, String... def_value) {
 		String v = request.getParameter(name);
 		return (v != null) ? v : ((def_value.length > 0) ? def_value[0] : null);
 	}
 
-	public long param(String name, long def_value) {
-		return NumberUtils.toLong(param(name), def_value);
+	public long getParam(String name, long def_value) {
+		return NumberUtils.toLong(getParam(name), def_value);
 	}
 
-	public int param(String name, int def_value) {
-		return NumberUtils.toInt(param(name), def_value);
+	public int getParam(String name, int def_value) {
+		return NumberUtils.toInt(getParam(name), def_value);
 	}
 
-	public byte param(String name, byte def_value) {
-		return (byte) NumberUtils.toInt(param(name), def_value);
+	public byte getParam(String name, byte def_value) {
+		return (byte) NumberUtils.toInt(getParam(name), def_value);
 	}
 
-	public String[] params(String name) {
+	public String[] getParams(String name) {
 		return request.getParameterValues(name);
-	}
-
-	public long[] lparams(String name) {
-		String[] values = params(name);
-		if (values == null)
-			return null;
-		return (long[]) ConvertUtils.convert(values, long.class);
-	}
-
-	public String servletPath() {
-		return request.getServletPath();
-	}
-
-	public String uri() {
-		return request.getRequestURI();
-	}
-
-	public String contextPath() {
-		return request.getContextPath();
 	}
 
 	public void redirect(String uri) throws IOException {
@@ -334,21 +313,21 @@ public class RequestContext {
 	public boolean isUpload() {
 		return (request instanceof MultipartRequest);
 	}
+	
+	public boolean isRobot() {
+		return RequestUtils.isRobot(request);
+	}
 
-	public File file(String fieldName) {
+	public File getFile(String fieldName) {
 		if (request instanceof MultipartRequest)
 			return ((MultipartRequest) request).getFile(fieldName);
 		return null;
 	}
 
-	public File image(String fieldname) {
-		File imgFile = file(fieldname);
+	public File getImage(String fieldname) {
+		File imgFile = getFile(fieldname);
 		return (imgFile != null && Multimedia.isImageFile(imgFile.getName())) ? imgFile
 				: null;
-	}
-
-	public boolean isRobot() {
-		return RequestUtils.isRobot(request);
 	}
 
 	public ActionException fromResource(String bundle, String key,
@@ -371,7 +350,7 @@ public class RequestContext {
 		response.getWriter().print(msg);
 	}
 
-	public void output_json(String[] key, Object[] value) throws IOException {
+	public void printJson(String[] key, Object[] value) throws IOException {
 		StringBuilder json = new StringBuilder("{");
 		for (int i = 0; i < key.length; i++) {
 			if (i > 0)
@@ -390,8 +369,8 @@ public class RequestContext {
 		print(json.toString());
 	}
 
-	public void output_json(String key, Object value) throws IOException {
-		output_json(new String[] { key }, new Object[] { value });
+	public void printJson(String key, Object value) throws IOException {
+		printJson(new String[] { key }, new Object[] { value });
 	}
 
 	public void error(int code, String... msg) throws IOException {
@@ -405,39 +384,34 @@ public class RequestContext {
 		error(HttpServletResponse.SC_FORBIDDEN);
 	}
 
-	public void not_found() throws IOException {
+	public void notFound() throws IOException {
 		error(HttpServletResponse.SC_NOT_FOUND);
 	}
 	
-	@SuppressWarnings("rawtypes")
-	public Map getParameterMap() {
-		return request.getParameterMap();
-	}
-
-	public Object requestAttr(String attr) {
-		HttpServletRequest request = request();
+	public Object getRequestAttr(String attr) {
+		HttpServletRequest request = getRequest();
 		return (request != null) ? request.getAttribute(attr) : null;
 	}
 
-	public ServletContext context() {
+	public ServletContext getContext() {
 		return context;
 	}
 
-	public HttpSession session() {
+	public HttpSession getSession() {
 		return session;
 	}
 
-	public HttpSession session(boolean create) {
+	public HttpSession getSession(boolean create) {
 		return (session == null && create) ? (session = request.getSession())
 				: session;
 	}
 	
-	public Object sessionAttr(String attr) {
-		HttpSession ssn = session();
+	public Object getSessionAttr(String attr) {
+		HttpSession ssn = getSession();
 		return (ssn!=null)?ssn.getAttribute(attr):null;
 	}
 
-	public HttpServletRequest request() {
+	public HttpServletRequest getRequest() {
 		return request;
 	}
 	
@@ -445,15 +419,15 @@ public class RequestContext {
 		request.setAttribute(key, value);
 	}
 
-	public HttpServletResponse response() {
+	public HttpServletResponse getResponse() {
 		return response;
 	}
 
-	public Cookie cookie(String name) {
+	public Cookie getCookie(String name) {
 		return cookies.get(name);
 	}
 
-	public void cookie(String name, String value, int max_age,
+	public void setCookie(String name, String value, int max_age,
 			boolean all_sub_domain) {
 		RequestUtils.setCookie(request, response, name, value, max_age,
 				all_sub_domain);
@@ -463,22 +437,49 @@ public class RequestContext {
 		RequestUtils.deleteCookie(request, response, name, all_domain);
 	}
 
-	public String header(String name) {
+	public String getHeader(String name) {
 		return request.getHeader(name);
 	}
 
-	public void header(String name, String value) {
+	public void setHeader(String name, String value) {
 		response.setHeader(name, value);
 	}
 
-	public void header(String name, int value) {
+	public void setHeader(String name, int value) {
 		response.setIntHeader(name, value);
 	}
 
-	public void header(String name, long value) {
+	public void setHeader(String name, long value) {
 		response.setDateHeader(name, value);
 	}
+	
+	public void closeCache() {
+		setHeader("Pragma", "No-cache");
+		setHeader("Cache-Control", "no-cache");
+		setHeader("Expires", 0L);
+	}
 
+	public String getServletPath() {
+		return request.getServletPath();
+	}
+
+	public String getURI() {
+		return request.getRequestURI();
+	}
+
+	public String getContextPath() {
+		return request.getContextPath();
+	}
+	
+	/**
+	 * 返回Web应用的路径
+	 * 
+	 * @return
+	 */
+	public static String getWebroot() {
+		return webroot;
+	}
+	
 	/**
 	 * 将HTTP请求参数映射到bean对象中
 	 * 
@@ -487,7 +488,7 @@ public class RequestContext {
 	 * @return
 	 * @throws Exception
 	 */
-	public <T> T form(Class<T> beanClass) {
+	public <T> T convertBean(Class<T> beanClass) {
 		try {
 			T bean = beanClass.newInstance();
 			BeanUtils.populate(bean, request.getParameterMap());
@@ -496,25 +497,27 @@ public class RequestContext {
 			throw new ActionException(e.getMessage());
 		}
 	}
-
+	
+	public void populate(Object bean) throws IllegalAccessException, InvocationTargetException {
+		BeanUtils.populate(bean, request.getParameterMap());
+	}
+	
 	/**
-	 * 保存登录信息
-	 * 
-	 * @param req
-	 * @param res
-	 * @param user
-	 * @param save
+	 * 去除contextPath的URI
+	 * @param rc
+	 * @return
 	 */
-	public void saveUserInCookie(IUser user, boolean save) {
-		String new_value = _genLoginKey(user, ip(), header("user-agent"));
-		int max_age = save ? MAX_AGE : -1;
-		deleteCookie(COOKIE_LOGIN, true);
-		cookie(COOKIE_LOGIN, new_value, max_age, true);
-	}
-
-	public void deleteUserInCookie() {
-		deleteCookie(COOKIE_LOGIN, true);
-	}
+	public String getURIAndExcludeContextPath() {
+		if (getContextPath().equals("")) {
+			return getURI();
+		} else {
+			String t = StringUtils.substringAfter(getURI(), getContextPath());
+			if (!t.startsWith("/")) {
+				t = "/" + t;
+			}
+			return t;
+		}
+	}	
 
 	/**
 	 * 3.0 以上版本的 Resin 无需对URL参数进行转码
@@ -537,104 +540,88 @@ public class RequestContext {
 		return false;
 	}
 
-	/**
-	 * 自动解码
-	 * 
-	 * @author liudong
-	 */
-	private static class requestProxy extends HttpServletRequestWrapper {
-		private String uri_encoding;
-
-		requestProxy(HttpServletRequest request, String encoding) {
-			super(request);
-			this.uri_encoding = encoding;
-		}
-
-		/**
-		 * 重载getParameter
-		 */
-		public String getParameter(String paramName) {
-			String value = super.getParameter(paramName);
-			return _DecodeParamValue(value);
-		}
-
-		/**
-		 * 重载getParameterMap
-		 */
-		@SuppressWarnings({ "unchecked", "rawtypes" })
-		public Map<String, Object> getParameterMap() {
-			Map params = super.getParameterMap();
-			HashMap<String, Object> new_params = new HashMap<String, Object>();
-			Iterator<String> iter = params.keySet().iterator();
-			while (iter.hasNext()) {
-				String key = (String) iter.next();
-				Object oValue = params.get(key);
-				if (oValue.getClass().isArray()) {
-					String[] values = (String[]) params.get(key);
-					String[] new_values = new String[values.length];
-					for (int i = 0; i < values.length; i++)
-						new_values[i] = _DecodeParamValue(values[i]);
-
-					new_params.put(key, new_values);
-				} else {
-					String value = (String) params.get(key);
-					String new_value = _DecodeParamValue(value);
-					if (new_value != null)
-						new_params.put(key, new_value);
-				}
-			}
-			return new_params;
-		}
-
-		/**
-		 * 重载getParameterValues
-		 */
-		public String[] getParameterValues(String arg0) {
-			String[] values = super.getParameterValues(arg0);
-			for (int i = 0; values != null && i < values.length; i++)
-				values[i] = _DecodeParamValue(values[i]);
-			return values;
-		}
-
-		/**
-		 * 参数转码
-		 * 
-		 * @param value
-		 * @return
-		 */
-		private String _DecodeParamValue(String value) {
-			if (StringUtils.isBlank(value) || StringUtils.isBlank(uri_encoding)
-					|| StringUtils.isNumeric(value))
-				return value;
-			try {
-				return new String(value.getBytes("8859_1"), uri_encoding);
-			} catch (Exception e) {
-			}
-			return value;
-		}
-
-	}
-
 	private static boolean _isMultipart(HttpServletRequest req) {
 		return ((req.getContentType() != null) && (req.getContentType()
 				.toLowerCase().startsWith("multipart")));
 	}
 	
+	public final static String COOKIE_LOGIN = "fensyid";
+	public final static int MAX_AGE = 86400 * 365;
+	public final static byte[] E_KEY = new byte[] { '1', '2', '3', '4', '5', '6', '7', '8' };
+	
 	/**
-	 * 去除contextPath的URI
-	 * @param rc
+	 * 保存登录信息
+	 * 
+	 * @param req
+	 * @param res
+	 * @param user
+	 * @param save
+	 */
+	public void saveUserInCookie(IUser user, boolean save) {
+		String new_value = _genLoginKey(user, getIp(), getHeader("user-agent"));
+		int max_age = save ? MAX_AGE : -1;
+		deleteCookie(COOKIE_LOGIN, true);
+		setCookie(COOKIE_LOGIN, new_value, max_age, true);
+	}
+
+	public void deleteUserFromCookie() {
+		deleteCookie(COOKIE_LOGIN, true);
+	}
+	
+
+	/**
+	 * 从cookie中读取保存的用户信息
+	 * 
+	 * @param req
 	 * @return
 	 */
-	public String getRequestURIAndExcludeContextPath() {
-		if (contextPath().equals("")) {
-			return uri();
-		} else {
-			String t = StringUtils.substringAfter(uri(), contextPath());
-			if (!t.startsWith("/")) {
-				t = "/" + t;
+	public IUser getUserFromCookie() {
+		try {
+			Cookie cookie = getCookie(COOKIE_LOGIN);
+			if (cookie != null && StringUtils.isNotBlank(cookie.getValue())) {
+				return getUserByUUID(cookie.getValue());
 			}
-			return t;
+		} catch (Exception e) {
 		}
+		return null;
+	}
+
+	/**
+	 * 从cookie中读取保存的用户信息
+	 * 
+	 * @param req
+	 * @return
+	 */
+	public IUser getUserByUUID(String uuid) {
+		if (StringUtils.isBlank(uuid))
+			return null;
+		String ck = _decrypt(uuid);
+		final String[] items = StringUtils.split(ck, '|');
+		if (items.length == 5) {
+			String ua = getHeader("user-agent");
+			int ua_code = (ua == null) ? 0 : ua.hashCode();
+			int old_ua_code = Integer.parseInt(items[3]);
+			if (ua_code == old_ua_code) {
+				return new IUser() {
+					public boolean isBlocked() {
+						return false;
+					}
+
+					public long getId() {
+						return NumberUtils.toLong(items[0], -1L);
+					}
+
+					public String getPassword() {
+						return items[1];
+					}
+
+					public byte getRole() {
+						return IUser.ROLE_GENERAL;
+					}
+				};
+			}
+		}
+		return null;
 	}
 	
 	/**
@@ -694,63 +681,81 @@ public class RequestContext {
 			return null;
 		}
 	}
-
+	
 	/**
-	 * 从cookie中读取保存的用户信息
+	 * 自动解码
 	 * 
-	 * @param req
-	 * @return
 	 */
-	public IUser getUserFromCookie() {
-		try {
-			Cookie cookie = cookie(COOKIE_LOGIN);
-			if (cookie != null && StringUtils.isNotBlank(cookie.getValue())) {
-				return userFromUUID(cookie.getValue());
-			}
-		} catch (Exception e) {
+	private static class RequestProxy extends HttpServletRequestWrapper {
+		private String uri_encoding;
+
+		RequestProxy(HttpServletRequest request, String encoding) {
+			super(request);
+			this.uri_encoding = encoding;
 		}
-		return null;
-	}
 
-	/**
-	 * 从cookie中读取保存的用户信息
-	 * 
-	 * @param req
-	 * @return
-	 */
-	public IUser userFromUUID(String uuid) {
-		if (StringUtils.isBlank(uuid))
-			return null;
-		String ck = _decrypt(uuid);
-		final String[] items = StringUtils.split(ck, '|');
-		if (items.length == 5) {
-			String ua = header("user-agent");
-			int ua_code = (ua == null) ? 0 : ua.hashCode();
-			int old_ua_code = Integer.parseInt(items[3]);
-			if (ua_code == old_ua_code) {
-				return new IUser() {
-					public boolean isBlocked() {
-						return false;
-					}
-
-					public long getId() {
-						return NumberUtils.toLong(items[0], -1L);
-					}
-
-					public String getPassword() {
-						return items[1];
-					}
-
-					public byte getRole() {
-						return IUser.ROLE_GENERAL;
-					}
-				};
-			}
+		/**
+		 * 重载getParameter
+		 */
+		public String getParameter(String paramName) {
+			String value = super.getParameter(paramName);
+			return _decodeParamValue(value);
 		}
-		return null;
-	}
 
-	public final static String COOKIE_LOGIN = "fensyid";
-	public final static int MAX_AGE = 86400 * 365;
-	public final static byte[] E_KEY = new byte[] { '1', '2', '3', '4', '5', '6', '7', '8' };
+		/**
+		 * 重载getParameterMap
+		 */
+		@SuppressWarnings({ "unchecked", "rawtypes" })
+		public Map<String, Object> getParameterMap() {
+			Map params = super.getParameterMap();
+			HashMap<String, Object> new_params = new HashMap<String, Object>();
+			Iterator<String> iter = params.keySet().iterator();
+			while (iter.hasNext()) {
+				String key = (String) iter.next();
+				Object oValue = params.get(key);
+				if (oValue.getClass().isArray()) {
+					String[] values = (String[]) params.get(key);
+					String[] new_values = new String[values.length];
+					for (int i = 0; i < values.length; i++)
+						new_values[i] = _decodeParamValue(values[i]);
+
+					new_params.put(key, new_values);
+				} else {
+					String value = (String) params.get(key);
+					String new_value = _decodeParamValue(value);
+					if (new_value != null)
+						new_params.put(key, new_value);
+				}
+			}
+			return new_params;
+		}
+
+		/**
+		 * 重载getParameterValues
+		 */
+		public String[] getParameterValues(String arg0) {
+			String[] values = super.getParameterValues(arg0);
+			for (int i = 0; values != null && i < values.length; i++)
+				values[i] = _decodeParamValue(values[i]);
+			return values;
+		}
+
+		/**
+		 * 参数转码
+		 * 
+		 * @param value
+		 * @return
+		 */
+		private String _decodeParamValue(String value) {
+			if (StringUtils.isBlank(value) || StringUtils.isBlank(uri_encoding)
+					|| StringUtils.isNumeric(value))
+				return value;
+			try {
+				return new String(value.getBytes("8859_1"), uri_encoding);
+			} catch (Exception e) {
+			}
+			return value;
+		}
+
+	}
 }

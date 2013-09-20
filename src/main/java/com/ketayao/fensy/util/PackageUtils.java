@@ -8,9 +8,6 @@ import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.List;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 /**
  * 	
  * @author 	<a href="mailto:ketayao@gmail.com">ketayao</a>
@@ -18,8 +15,11 @@ import org.slf4j.LoggerFactory;
  */
 public class PackageUtils {
 	
-	private final static Logger log = LoggerFactory.getLogger(PackageUtils.class);
-	
+	/**
+	 * 扫描给定包及子包内的所有类
+	 * @param packageName
+	 * @return
+	 */
 	public static String[] getClassNames(String packageName){
 		Class<?> cla = PackageUtils.class;
 		String path = packageName.replace('.', '/');
@@ -126,12 +126,9 @@ public class PackageUtils {
 //			System.out.println(cla);
 //		}
 		
-		
 		String path = "E:/Program%20Files/apache-tomcat-6.0.33/webapps/loveJ4Fensy/WEB-INF/classes/com/ketayao/action/";
 		path = URLDecoder.decode(path, "UTF-8");
 		System.out.println(path);
-		
 	}
 
 }
-

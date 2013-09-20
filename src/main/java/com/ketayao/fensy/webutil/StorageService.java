@@ -14,7 +14,7 @@ public class StorageService extends Storage {
 	private String read_path;
 	
 	public StorageService(String ext){
-		this.file_path = RequestContext.root() + 
+		this.file_path = RequestContext.getWebroot() + 
 				"uploads" + java.io.File.separator + 
 				ext + java.io.File.separator;
 		this.read_path = "/uploads/" + ext + "/";

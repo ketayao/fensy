@@ -91,7 +91,7 @@ public class DBManager {
 			conns.set(conn);
 		}
 		return (show_sql && !Proxy.isProxyClass(conn.getClass()))?
-                      new _DebugConnection(conn).getConnection():conn;
+                      new _debugConnection(conn).getConnection():conn;
 	}
 	
 	/**
@@ -113,13 +113,13 @@ public class DBManager {
 	/**
 	 * 用于跟踪执行的SQL语句
 	 */
-	static class _DebugConnection implements InvocationHandler {
+	static class _debugConnection implements InvocationHandler {
 		
-		private final static Logger log = LoggerFactory.getLogger(_DebugConnection.class);
+		private final static Logger log = LoggerFactory.getLogger(_debugConnection.class);
 		
 		private Connection conn = null;
 
-		public _DebugConnection(Connection conn) {
+		public _debugConnection(Connection conn) {
 			this.conn = conn;
 		}
 

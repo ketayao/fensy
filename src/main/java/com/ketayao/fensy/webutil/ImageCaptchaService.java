@@ -46,8 +46,8 @@ public class ImageCaptchaService {
 			return;
 		}
 		ctx.closeCache();
-        ctx.response().setContentType("image/png");
-        _render(_generateRegKey(ctx), ctx.response().getOutputStream(), WIDTH, HEIGHT);
+        ctx.getResponse().setContentType("image/png");
+        _render(_generateRegKey(ctx), ctx.getResponse().getOutputStream(), WIDTH, HEIGHT);
 	}
 	
 	/**
@@ -73,11 +73,11 @@ public class ImageCaptchaService {
 	}
 	
 	private static String _generateRegKey(RequestContext ctx) {
-		Cookie cke = ctx.cookie(COOKIE_NAME);
+		Cookie cke = ctx.getCookie(COOKIE_NAME);
 		String REG_VALUE = null;
 		if(cke==null||StringUtils.isBlank(cke.getValue())){
 			REG_VALUE = RandomStringUtils.randomAlphanumeric(20);
-			ctx.cookie(COOKIE_NAME, REG_VALUE, 3600, true);
+			ctx.setCookie(COOKIE_NAME, REG_VALUE, 3600, true);
 		}
 		else
 			REG_VALUE = cke.getValue();
@@ -87,8 +87,8 @@ public class ImageCaptchaService {
 		code.replace('I', 'E');
 		code.replace('1', 'T');
 		CacheManager.set(CACHE_REGION, REG_VALUE, code);
-		if(ctx.session()!=null){
-			CacheManager.set(CACHE_REGION, ctx.session().getId(), code);
+		if(ctx.getSession()!=null){
+			CacheManager.set(CACHE_REGION, ctx.getSession().getId(), code);
 		}
 		return code;
 	}

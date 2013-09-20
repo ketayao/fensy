@@ -52,59 +52,59 @@ public abstract class Multimedia {
 	public static boolean isImageFile(String fn){
 		String ext = FilenameUtils.getExtension(fn);
 		if(StringUtils.isBlank(ext)) return false;
-		return ArrayUtils.contains(img_exts, ext.toLowerCase());
+		return ArrayUtils.contains(IMG_EXTS, ext.toLowerCase());
 	}
 	
 	public static boolean isAudioFile(String fn){
 		String ext = FilenameUtils.getExtension(fn);
 		if(StringUtils.isBlank(ext)) return false;
-		return ArrayUtils.contains(audio_exts, ext.toLowerCase());
+		return ArrayUtils.contains(AUDIO_EXTS, ext.toLowerCase());
 	}
 	
 	public static boolean isVideoFile(String fn){
 		String ext = FilenameUtils.getExtension(fn);
 		if(StringUtils.isBlank(ext)) return false;
-		return ArrayUtils.contains(video_exts, ext.toLowerCase());
+		return ArrayUtils.contains(VIDEO_EXTS, ext.toLowerCase());
 	}
 	
 	public static boolean isFlashFile(String fn){
 		String ext = FilenameUtils.getExtension(fn);
 		if(StringUtils.isBlank(ext)) return false;
-		return ArrayUtils.contains(flash_exts, ext.toLowerCase());
+		return ArrayUtils.contains(FLASH_EXTS, ext.toLowerCase());
 	}
 	
 	public static boolean isDocumentFile(String fn) {
 		String ext = FilenameUtils.getExtension(fn);
 		if(StringUtils.isBlank(ext)) return false;
-		return ArrayUtils.contains(docs_exts, ext.toLowerCase());
+		return ArrayUtils.contains(DOCS_EXTS, ext.toLowerCase());
 	}
 	
 	/**
 	 * 所有支持的MIME TYPES,其他格式的图片不做支持
 	 */
-	public final static String[] img_exts = new String[]{"gif","jpg","jpeg","png","bmp"};
+	public final static String[] IMG_EXTS = new String[]{"gif","jpg","jpeg","png","bmp"};
 
 	/**
 	 * 所有支持的视频MIME TYPES
 	 */
-	public final static String[] video_exts = new String[]{"avi","rm","3gp","wmv","mpg","asf"};
+	public final static String[] VIDEO_EXTS = new String[]{"avi","rm","3gp","wmv","mpg","asf"};
 
 	/**
 	 * 所有支持的音频MIME TYPES
 	 */
-	public final static String[] audio_exts = new String[]{"wma","mp3","arm","mid","aac","imy"};
+	public final static String[] AUDIO_EXTS = new String[]{"wma","mp3","arm","mid","aac","imy"};
 	
 	/**
 	 * Flash动画
 	 */
-	public final static String[] flash_exts = new String[]{"swf"};
+	public final static String[] FLASH_EXTS = new String[]{"swf"};
 
 	/**
 	 * 文档类型
 	 */
-	public final static String[] docs_exts = new String[]{"txt","htm","html","pdf","doc","rtf","xls","ppt"};
+	public final static String[] DOCS_EXTS = new String[]{"txt","htm","html","pdf","doc","rtf","xls","ppt"};
 
-	public final static HashMap<String, String> mime_types = new HashMap<String, String>()
+	public final static HashMap<String, String> MIME_TYPES = new HashMap<String, String>()
 	{
 		/** 描述  */
 		private static final long serialVersionUID = 7133356034173876016L;

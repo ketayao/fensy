@@ -94,9 +94,9 @@ public class FensyAction {
 	 */
 	public boolean process(RequestContext rc) throws Exception{
 		// 处理locale
-		rc.saveLocale();
+		rc.saveLocaleFromRequest();
 		
-		String requestURI = rc.getRequestURIAndExcludeContextPath();
+		String requestURI = rc.getURIAndExcludeContextPath();
 		// 类似 /action/ admin/home/index
 		
 		String temp = requestURI;
@@ -115,7 +115,7 @@ public class FensyAction {
 				if (log.isDebugEnabled()) {
 					log.debug("requestURI=" + requestURI + "--->not found action");
 				}
-				rc.not_found();
+				rc.notFound();
 				return false;
 			}
 		
@@ -138,12 +138,12 @@ public class FensyAction {
 				if (log.isDebugEnabled()) {
 					log.debug("requestURI=" + requestURI + "--->not found method Of Action");
 				}
-				rc.not_found();
+				rc.notFound();
 				return false;
 			}
 
 			for (Interceptor interceptor : interceptors) {
-				boolean result = interceptor.preHandle(rc, new Object[]{action, methodOfAction});
+				boolean result = interceptor.preHandle(rc, methodOfAction);
 				if (!result) {
 					return false;
 				}
@@ -178,12 +178,8 @@ public class FensyAction {
 				if (log.isDebugEnabled()) {
 					log.debug("requestURI=" + requestURI + "--->not found args matach method Of Action");
 				}
-				rc.not_found();
+				rc.notFound();
 				return true;
-			}
-			
-			for (int i = interceptors.size() - 1; i >= 0; i--) {
-				interceptors.get(i).postHandle(rc, new Object[]{action, methodOfAction}, result);
 			}
 			
 			handleReturns(rc, result);
@@ -198,7 +194,7 @@ public class FensyAction {
 			throw e;			
 		} finally {
 			for (int i = interceptors.size() - 1; i >= 0; i--) {
-				interceptors.get(i).afterCompletion(rc, new Object[]{action, methodOfAction}, exception);
+				interceptors.get(i).afterCompletion(rc, methodOfAction, exception);
 			}
 		}
 	}

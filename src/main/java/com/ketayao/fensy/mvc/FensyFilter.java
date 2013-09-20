@@ -173,20 +173,20 @@ public class FensyFilter implements Filter {
 		HttpServletResponse response = (HttpServletResponse)res;
 		RequestContext rc = RequestContext.begin(this.context, request, response);
 		
-		String req_uri = rc.getRequestURIAndExcludeContextPath();
+		String req_uri = rc.getURIAndExcludeContextPath();
 
 		try{
 			//过滤URL前缀
 			for(String ignoreURI : ignoreURIs){
 				if(req_uri.startsWith(ignoreURI)){
-					chain.doFilter(rc.request(), rc.response());
+					chain.doFilter(rc.getRequest(), rc.getResponse());
 					return ;
 				}
 			}
 			//过滤URL后缀
 			for(String ignoreExt : ignoreExts){
 				if(req_uri.endsWith(ignoreExt)){
-					chain.doFilter(rc.request(), rc.response());
+					chain.doFilter(rc.getRequest(), rc.getResponse());
 					return ;
 				}
 			}
@@ -211,7 +211,7 @@ public class FensyFilter implements Filter {
 		//rc.request().setAttribute(REQUEST_URI, req_uri);
 		String[] paths = StringUtils.split(req_uri, '/');
 		
-		PathView pathView = _getTemplate(rc.request(), paths, paths.length);
+		PathView pathView = _getTemplate(rc.getRequest(), paths, paths.length);
 		if (pathView == null) {
 			throw NotFoundTemplateException.build(req_uri, viewList);
 		}

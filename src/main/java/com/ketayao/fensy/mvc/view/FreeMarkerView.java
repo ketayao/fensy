@@ -67,7 +67,7 @@ public class FreeMarkerView implements View {
 
 	private ServletContextHashModel servletContextHashModel;
 
-    private static final String TEMPLATE_PATH = "TemplatePath";
+    //private static final String TEMPLATE_PATH = "TemplatePath";
     
 	/**
 	 * Set the encoding of the FreeMarker template file. Default is determined
@@ -145,12 +145,12 @@ public class FreeMarkerView implements View {
 	}
     
 	protected SimpleHash buildTemplateModel(Map<String, Object> model, RequestContext rc) {
-		AllHttpScopesHashModel fmModel = new AllHttpScopesHashModel(getObjectWrapper(), rc.context(), rc.request());
+		AllHttpScopesHashModel fmModel = new AllHttpScopesHashModel(getObjectWrapper(), rc.getContext(), rc.getRequest());
 		fmModel.put(FreemarkerServlet.KEY_JSP_TAGLIBS, this.taglibFactory);
 		fmModel.put(FreemarkerServlet.KEY_APPLICATION, this.servletContextHashModel);
-		fmModel.put(FreemarkerServlet.KEY_SESSION, buildSessionModel(rc.request(), rc.response()));
-		fmModel.put(FreemarkerServlet.KEY_REQUEST, new HttpRequestHashModel(rc.request(), rc.response(), getObjectWrapper()));
-		fmModel.put(FreemarkerServlet.KEY_REQUEST_PARAMETERS, new HttpRequestParametersHashModel(rc.request()));
+		fmModel.put(FreemarkerServlet.KEY_SESSION, buildSessionModel(rc.getRequest(), rc.getResponse()));
+		fmModel.put(FreemarkerServlet.KEY_REQUEST, new HttpRequestHashModel(rc.getRequest(), rc.getResponse(), getObjectWrapper()));
+		fmModel.put(FreemarkerServlet.KEY_REQUEST_PARAMETERS, new HttpRequestParametersHashModel(rc.getRequest()));
 		fmModel.putAll(model);
 		return fmModel;
 	}
@@ -199,21 +199,21 @@ public class FreeMarkerView implements View {
 	public void render(RequestContext rc, String templatePath)
 			throws IOException, ServletException {
 		
-		init(rc.context());
+		init(rc.getContext());
 		
-		rc.response().setContentType("text/html; charset=" + getEncoding());
+		rc.getResponse().setContentType("text/html; charset=" + getEncoding());
 		
 		// Expose all standard FreeMarker hash models.
 		Map<String, Object> model = new HashMap<String, Object>();
 		SimpleHash fmModel = buildTemplateModel(model, rc);
 
 		// Grab the locale-specific version of the template.
-		Locale locale = rc.locale();
+		Locale locale = rc.getLocale();
 
 		PrintWriter writer = null;
         try {
 			Template template = getTemplate(templatePath, locale);
-			writer = rc.response().getWriter();
+			writer = rc.getResponse().getWriter();
 			template.process(fmModel, writer);		// Merge the data-model and the template
 		} catch (Exception e) {
 			e.printStackTrace();

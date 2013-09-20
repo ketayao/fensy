@@ -25,6 +25,7 @@ import com.ketayao.fensy.exception.DBException;
 public class QueryHelper {
 	
 	private final static QueryRunner _g_runner = new QueryRunner();
+	@SuppressWarnings("rawtypes")
 	private final static ColumnListHandler _g_columnListHandler = new ColumnListHandler(){
 		@Override
 		protected Object handleRow(ResultSet rs) throws SQLException {
@@ -35,6 +36,7 @@ public class QueryHelper {
 		}
 		
 	};
+	@SuppressWarnings("rawtypes")
 	private final static ScalarHandler _g_scaleHandler = new ScalarHandler(){
 		@Override
 		public Object handle(ResultSet rs) throws SQLException {
@@ -148,7 +150,7 @@ public class QueryHelper {
 			throw new IllegalArgumentException("Illegal parameter of 'page' or 'count', Must be positive.");
 		int from = (page - 1) * count;
 		count = (count > 0) ? count : Integer.MAX_VALUE;
-		return query(beanClass, sql + " LIMIT ?,?", ArrayUtils.addAll(params, new Integer[]{from,count}));		
+		return query(beanClass, sql + " LIMIT ?,?", ArrayUtils.addAll(params, (Object[])(new Integer[]{from,count})));		
 	}
 	
 	/**
