@@ -431,7 +431,13 @@ public class POJO implements Serializable {
 			
 			Map<String, Object> priMap = new HashMap<String, Object>();
 			for (Entry<String, Object> entry : props.entrySet()) {
-				Field field = this.getClass().getDeclaredField(entry.getKey());
+				Field field = null;
+				try {
+					// 有些方法可能并没有对应的属性，如果存在则跳过。
+					field = this.getClass().getDeclaredField(entry.getKey());
+				} catch (NoSuchFieldException e) {
+					continue;
+				}
 				
 				if (QueryHelper._isPrimitive(field.getType())) {
 					priMap.put(entry.getKey(), entry.getValue());
