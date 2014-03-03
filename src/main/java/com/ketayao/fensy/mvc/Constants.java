@@ -2,6 +2,15 @@ package com.ketayao.fensy.mvc;
 
 public interface Constants {
 	/**
+	 * request的post请求
+	 */
+	String REQUEST_POST = "post";
+	/**
+	 * request的get请求
+	 */
+	String REQUEST_GET = "get";
+	
+	/**
 	 * action类后缀
 	 */
 	String ACTION_EXT = "Action";

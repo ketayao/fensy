@@ -279,15 +279,18 @@ public class DispatcherFilter implements Filter {
 	
 		String[] parts = StringUtils.split(selfURI, '/');
 		int actionLength = StringUtils.split(actionObject.getName(), '/').length;
-		String actionMethod = Constants.ACTION_DEFAULT_METHOD;
+		String actionMethodName = Constants.ACTION_DEFAULT_METHOD;
 		// 带路径参数
 		if (parts.length > actionLength && !NumberUtils.isDigits(parts[actionLength])) { 
-			actionMethod = parts[actionLength];
+			actionMethodName = parts[actionLength];
 		} 
 		
 		// 查找methodOfAction
-		Method methodOfAction = getActionMethod(action, actionMethod);
-		if (methodOfAction == null) {
+		Method methodOfAction = getActionMethod(action, actionMethodName);
+		if (methodOfAction == null || 
+				// 假如不是post请求，并且还要访问post方法 
+				(!rc.getRequest().getMethod().equalsIgnoreCase(Constants.REQUEST_POST) 
+						&& !actionMethodName.equalsIgnoreCase(methodOfAction.getName()))) {
 			if (log.isDebugEnabled()) {
 				log.debug("requestURI=" + requestURI + "--->not found method Of Action");
 			}
@@ -347,7 +350,7 @@ public class DispatcherFilter implements Filter {
 			
 			handleMethodReturn(rc, returnValue);
 			if (log.isDebugEnabled()) {
-				log.debug("requestURI=" + requestURI + ";action=" + action + ";method=" + actionMethod + ";result=" +
+				log.debug("requestURI=" + requestURI + ";action=" + action + ";method=" + actionMethodName + ";result=" +
 						(returnValue != null ? returnValue.toString():"NULL") + ";args=" + args);
 			}
 		} catch (Exception e) {
@@ -590,7 +593,7 @@ public class DispatcherFilter implements Filter {
 	}
 	
 	/**
-	 * 获取名为{method}的方法
+	 * 获取名为{methodName}的方法，假如没有找到，则试着查找{"post" + methodName}方法
 	 * @param action
 	 * @param methodName
 	 * @return
@@ -602,22 +605,31 @@ public class DispatcherFilter implements Filter {
 			return null;
 		}
 		
-		String key = action.getClass().getName() + '$' + methodName;
+		String key = action.getClass().getName() + '$' + methodName.toLowerCase();
 		Method method = methods.get(key);
 		if (method != null) {
 			return method;
 		}
 	
 		for (Method m : action.getClass().getMethods()) {
-			if (m.getModifiers() == Modifier.PUBLIC && m.getName().equals(methodName)) {
-				//synchronized (methods) {
-					methods.put(key, m);
-				//}
-				return m;
+			if (m.getModifiers() == Modifier.PUBLIC && m.getName().equalsIgnoreCase(methodName)) {
+				method = m;
 			}
 		}
 		
-		return null;
+		// 继续查找是否存在post方法。
+		methodName = Constants.REQUEST_POST + methodName;
+		for (Method m : action.getClass().getMethods()) {
+			if (m.getModifiers() == Modifier.PUBLIC && m.getName().equalsIgnoreCase(methodName)) {
+				method = m;
+			}
+		}
+		
+		//synchronized (methods) {
+			methods.put(key, method);
+		//}
+		
+		return method;
 	}
 	
 	/**
