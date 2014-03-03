@@ -127,7 +127,7 @@ public class RequestContext {
 			HttpServletRequest req, HttpServletResponse res) {
 		RequestContext rc = new RequestContext();
 		rc.context = ctx;
-		rc.request = _autoUploadRequest(_autoEncodingRequest(req));// 是否是上传请求
+		rc.request = _autoUploadRequest(encodeRequest(req));// 是否是上传请求
 
 		rc.response = res;
 		rc.response.setCharacterEncoding(UTF_8);
@@ -144,6 +144,10 @@ public class RequestContext {
 				rc.cookies.put(ck.getName(), ck);
 			}
 		}
+		
+		// 处理locale
+		rc.saveLocaleFromRequest();
+		
 		contexts.set(rc);
 		return rc;
 	}
@@ -212,8 +216,7 @@ public class RequestContext {
 	 * @param req
 	 * @return
 	 */
-	private static HttpServletRequest _autoEncodingRequest(
-			HttpServletRequest req) {
+	private static HttpServletRequest encodeRequest(HttpServletRequest req) {
 		if (req instanceof RequestProxy)
 			return req;
 		HttpServletRequest auto_encoding_req = req;
@@ -235,7 +238,7 @@ public class RequestContext {
 	 * @return
 	 */
 	private static HttpServletRequest _autoUploadRequest(HttpServletRequest req) {
-		if (_isMultipart(req)) {
+		if (isMultipart(req)) {
 			String path = upload_tmp_path
 					+ RandomStringUtils.randomAlphanumeric(10);
 			File dir = new File(path);
@@ -540,7 +543,7 @@ public class RequestContext {
 		return false;
 	}
 
-	private static boolean _isMultipart(HttpServletRequest req) {
+	private static boolean isMultipart(HttpServletRequest req) {
 		return ((req.getContentType() != null) && (req.getContentType()
 				.toLowerCase().startsWith("multipart")));
 	}
