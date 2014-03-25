@@ -10,7 +10,7 @@
  
 package com.ketayao.fensy.mvc.interceptor;
 
-import com.ketayao.fensy.mvc.RequestContext;
+import com.ketayao.fensy.mvc.WebContext;
 
 /** 
  * 	
@@ -20,12 +20,12 @@ import com.ketayao.fensy.mvc.RequestContext;
 
 public interface Interceptor {
 
-	public boolean preHandle(RequestContext rc, Object handler)
+	public boolean preHandle(WebContext rc, Object handler)
 		throws Exception;
 
-	public void postHandle(RequestContext rc, Object handler, Object result)
+	public void postHandle(WebContext rc, Object handler, Object result)
 			throws Exception;
 
-	public void afterCompletion(RequestContext rc, Object handler, Exception ex)
+	public void afterCompletion(WebContext rc, Object handler, Exception ex)
 			throws Exception;
 }

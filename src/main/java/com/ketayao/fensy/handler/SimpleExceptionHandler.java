@@ -12,7 +12,7 @@ package com.ketayao.fensy.handler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.ketayao.fensy.mvc.RequestContext;
+import com.ketayao.fensy.mvc.WebContext;
 import com.ketayao.fensy.util.Exceptions;
 
 /** 
@@ -31,10 +31,10 @@ public class SimpleExceptionHandler implements ExceptionHandler {
 	 * @param rc
 	 * @param exception
 	 * @return  
-	 * @see com.ketayao.fensy.handler.ExceptionHandler#handle(com.ketayao.fensy.mvc.RequestContext, java.lang.Exception)
+	 * @see com.ketayao.fensy.handler.ExceptionHandler#handle(com.ketayao.fensy.mvc.WebContext, java.lang.Exception)
 	 */
 	@Override
-	public String handle(RequestContext rc, Exception exception) {
+	public String handle(WebContext rc, Exception exception) {
 		log.error(Exceptions.getStackTraceAsString(exception));
 		
 		rc.setRequestAttr("exception", exception);

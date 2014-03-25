@@ -39,17 +39,16 @@ public class EhCache implements Cache {
 	 */
 	public Object get(Object key) throws CacheException {
 		try {
-			if ( key == null ) 
+			if (key == null)
 				return null;
 			else {
-				Element element = cache.get( key );
-				if ( element != null )
-					return element.getObjectValue();				
+				Element element = cache.get(key);
+				if (element != null)
+					return element.getObjectValue();
 			}
 			return null;
-		}
-		catch (net.sf.ehcache.CacheException e) {
-			throw new CacheException( e );
+		} catch (net.sf.ehcache.CacheException e) {
+			throw new CacheException(e);
 		}
 	}
 
@@ -62,7 +61,7 @@ public class EhCache implements Cache {
 	 *                        is shutdown or another {@link Exception} occurs.
 	 */
 	public void update(Object key, Object value) throws CacheException {
-		put( key, value );
+		put(key, value);
 	}
 
 	/**
@@ -75,19 +74,15 @@ public class EhCache implements Cache {
 	 */
 	public void put(Object key, Object value) throws CacheException {
 		try {
-			Element element = new Element( key, value );
-			cache.put( element );
+			Element element = new Element(key, value);
+			cache.put(element);
+		} catch (IllegalArgumentException e) {
+			throw new CacheException(e);
+		} catch (IllegalStateException e) {
+			throw new CacheException(e);
+		} catch (net.sf.ehcache.CacheException e) {
+			throw new CacheException(e);
 		}
-		catch (IllegalArgumentException e) {
-			throw new CacheException( e );
-		}
-		catch (IllegalStateException e) {
-			throw new CacheException( e );
-		}
-		catch (net.sf.ehcache.CacheException e) {
-			throw new CacheException( e );
-		}
-
 	}
 
 	/**
@@ -100,13 +95,11 @@ public class EhCache implements Cache {
 	 */
 	public void remove(Object key) throws CacheException {
 		try {
-			cache.remove( key );
-		}
-		catch (IllegalStateException e) {
-			throw new CacheException( e );
-		}
-		catch (net.sf.ehcache.CacheException e) {
-			throw new CacheException( e );
+			cache.remove(key);
+		} catch (IllegalStateException e) {
+			throw new CacheException(e);
+		} catch (net.sf.ehcache.CacheException e) {
+			throw new CacheException(e);
 		}
 	}
 
@@ -119,12 +112,10 @@ public class EhCache implements Cache {
 	public void clear() throws CacheException {
 		try {
 			cache.removeAll();
-		}
-		catch (IllegalStateException e) {
-			throw new CacheException( e );
-		}
-		catch (net.sf.ehcache.CacheException e) {
-			throw new CacheException( e );
+		} catch (IllegalStateException e) {
+			throw new CacheException(e);
+		} catch (net.sf.ehcache.CacheException e) {
+			throw new CacheException(e);
 		}
 	}
 
@@ -135,13 +126,11 @@ public class EhCache implements Cache {
 	 */
 	public void destroy() throws CacheException {
 		try {
-			cache.getCacheManager().removeCache( cache.getName() );
-		}
-		catch (IllegalStateException e) {
-			throw new CacheException( e );
-		}
-		catch (net.sf.ehcache.CacheException e) {
-			throw new CacheException( e );
+			cache.getCacheManager().removeCache(cache.getName());
+		} catch (IllegalStateException e) {
+			throw new CacheException(e);
+		} catch (net.sf.ehcache.CacheException e) {
+			throw new CacheException(e);
 		}
 	}
 

@@ -21,7 +21,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
-import java.util.Properties;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -41,6 +40,7 @@ import org.apache.commons.lang3.math.NumberUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.ketayao.fensy.Constants;
 import com.ketayao.fensy.db.DBManager;
 import com.ketayao.fensy.exception.ActionException;
 import com.ketayao.fensy.exception.NotFoundTemplateException;
@@ -102,10 +102,16 @@ public class DispatcherFilter implements Filter {
 	public void init(FilterConfig cfg) throws ServletException {
 		this.context = cfg.getServletContext();
 
-		Properties config = PropertiesUtils.load(Constants.FENSY_CONFIG_FILE);
+		Map<String, String> config = PropertiesUtils.loadToMap(Constants.FENSY_CONFIG_FILE);
+		
+		// 设置上传文件尺寸
+		String tmpSzie = config.get(Constants.FENSY_UPLOAD_FILE_MAX_SIZE);
+		if (NumberUtils.isNumber(tmpSzie)) {
+			WebContext.setMaxSize(NumberUtils.toInt(tmpSzie));
+		}
 		
 		// 模板存放路径
-		String tmp = PropertiesUtils.getString(config, Constants.FENSY_TEMPLATE_PATH);
+		String tmp = config.get(Constants.FENSY_TEMPLATE_PATH);
 		if (StringUtils.isNotBlank(tmp)) {
 			if (tmp.endsWith("/")) {
 				tmp = tmp.substring(0, tmp.length() - 1);
@@ -115,16 +121,16 @@ public class DispatcherFilter implements Filter {
 		}
 		
 		// 主域名，必须指定
-		tmp = PropertiesUtils.getString(config, Constants.FENSY_ROOT_DOMAIN); 
+		tmp = config.get(Constants.FENSY_ROOT_DOMAIN); 
 		if(StringUtils.isNotBlank(tmp))
 			rootDomain = tmp;
 		
-		tmp = PropertiesUtils.getString(config, Constants.FENSY_ROOT_DOMAIN_TEMPLATE_PATH); 
+		tmp = config.get(Constants.FENSY_ROOT_DOMAIN_TEMPLATE_PATH); 
 		if(StringUtils.isNotBlank(tmp))
 			rootDomainTemplatePath = tmp;
 		
 		//二级域名和对应页面模板路径
-		tmp = PropertiesUtils.getString(config, Constants.FENSY_OTHER_DOMAIN_AND_TEMPLATE_PATH);
+		tmp = config.get(Constants.FENSY_OTHER_DOMAIN_AND_TEMPLATE_PATH);
 		if (StringUtils.isNotBlank(tmp)) {
 			String[] domainAndPath = tmp.split(",");
 			for (String dp : domainAndPath) {
@@ -136,14 +142,14 @@ public class DispatcherFilter implements Filter {
 		defaultTemplatePath = templatePath + rootDomainTemplatePath;
 		
 		// 某些URL前缀不予处理（例如 /img/**）
-		String ignores = PropertiesUtils.getString(config, Constants.FENSY_IGNORE_URI);
+		String ignores = config.get(Constants.FENSY_IGNORE_URI);
 		if (StringUtils.isBlank(ignores)) {
 			ignores = Constants.ACTION_IGNORE_URI;
 		}
 		ignoreURIs.addAll(Arrays.asList(StringUtils.split(ignores, ",")));
 		
 		// 某些URL扩展名不予处理（例如 *.jpg）
-		ignores = PropertiesUtils.getString(config, Constants.FENSY_IGNORE_EXT);
+		ignores = config.get(Constants.FENSY_IGNORE_EXT);
 		if (StringUtils.isBlank(ignores)) {
 			ignores = Constants.ACTION_IGNORE_EXT;
 		}
@@ -152,7 +158,7 @@ public class DispatcherFilter implements Filter {
 		}
 		
 		// 按顺序创建view
-		String views = PropertiesUtils.getString(config, Constants.FENSY_VIEW);
+		String views = config.get(Constants.FENSY_VIEW);
 		if(StringUtils.isNotBlank(views)) {
 			for(String v : StringUtils.split(views, ',')) {
 				View view = ViewMap.getView(v.toLowerCase());
@@ -176,7 +182,7 @@ public class DispatcherFilter implements Filter {
 		}
 		
 		// 初始化exceptionHandler
-		String eh = PropertiesUtils.getString(config, Constants.FENSY_EXCEPTION_HANDLE); 
+		String eh = config.get(Constants.FENSY_EXCEPTION_HANDLE); 
 		if (eh != null) {
 			try {
 				exceptionHandler = (ExceptionHandler)Class.forName(eh).newInstance();
@@ -185,7 +191,7 @@ public class DispatcherFilter implements Filter {
 		} 
 		
 		// 初始化interceptor
-		String tmpInter = PropertiesUtils.getString(config, Constants.FENSY_INTERCEPTOR_CONFIG);
+		String tmpInter = config.get(Constants.FENSY_INTERCEPTOR_CONFIG);
 		String[] interArr = StringUtils.split(tmpInter, ',');
 		for (String in : interArr) {
 			try {
@@ -199,7 +205,7 @@ public class DispatcherFilter implements Filter {
 		
 		// 初始化action
 		List<String> actionPackages = Arrays.asList(StringUtils.split(
-				PropertiesUtils.getString(config, Constants.FENSY_ACTION),','));
+				config.get(Constants.FENSY_ACTION),','));
 		initActions(actionPackages);
 	}
 	
@@ -226,7 +232,7 @@ public class DispatcherFilter implements Filter {
 			}
 		}
 		
-		RequestContext rc = RequestContext.begin(this.context, request, response);
+		WebContext rc = WebContext.begin(this.context, request, response);
 		reqURI = rc.getURIAndExcludeContextPath();
 		try{
 			process(rc, reqURI);
@@ -262,7 +268,7 @@ public class DispatcherFilter implements Filter {
 	 * @param requestURI
 	 * @throws Exception
 	 */
-	protected void process(RequestContext rc, String requestURI) throws Exception{
+	protected void process(WebContext rc, String requestURI) throws Exception{
 		// 类似 /action/ admin/home/index
 		String selfURI = checkURI(requestURI);
 		ActionObject actionObject = findMaxMatchAction(selfURI);
@@ -357,7 +363,7 @@ public class DispatcherFilter implements Filter {
 			exception = e;
 			throw e;			
 		} finally {
-			// 倒叙运行拦截器的afterCompletion方法
+			// 倒序运行拦截器的afterCompletion方法
 			@SuppressWarnings("unchecked")
 			Entry<String, Interceptor>[] entryArr = entries.toArray(new Entry[entries.size()]);
 			for (int i = entryArr.length - 1; i >= 0; i--) {
@@ -372,7 +378,7 @@ public class DispatcherFilter implements Filter {
 	 * @param result
 	 * @throws Exception
 	 */
-	private void handleMethodReturn(RequestContext rc, Object result) throws Exception {
+	private void handleMethodReturn(WebContext rc, Object result) throws Exception {
 		if (result instanceof String) {
 			String returnURI = (String)result;
 			if (returnURI.startsWith(Constants.ACTION_REDIRECT)) {

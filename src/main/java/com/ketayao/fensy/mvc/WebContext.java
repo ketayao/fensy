@@ -48,42 +48,35 @@ import com.ketayao.fensy.webutil.RequestUtils;
  * 
  * @date 2010-1-13 下午04:18:00
  */
-public class RequestContext {
+public class WebContext {
+	private final static Logger log = LoggerFactory.getLogger(WebContext.class);
 
-	private final static Logger log = LoggerFactory.getLogger(RequestContext.class);
-	
-	private final static int MAX_FILE_SIZE = 10 * 1024 * 1024;
 	private final static String UTF_8 = "UTF-8";
+	
+	private static int maxSize = 10 * 1024 * 1024;
+	private final static String TEMP_UPLOAD_FILE = "$TEMP_UPLOAD_FILE$";
 
-	private final static ThreadLocal<RequestContext> contexts = new ThreadLocal<RequestContext>();
-	private final static boolean isResin;
-	private final static String upload_tmp_path;
-	private final static String TEMP_UPLOAD_PATH_ATTR_NAME = "$TEMP_UPLOAD_PATH$";
-
-	private static String webroot = null;
+	private final static ThreadLocal<WebContext> CONTEXTS = new ThreadLocal<WebContext>();
 
 	private ServletContext context;
 	private HttpSession session;
 	private HttpServletRequest request;
 	private HttpServletResponse response;
 	private Map<String, Cookie> cookies;
-
+	
+	public final static byte[] E_KEY = new byte[] { '1', '2', '3', '4', '5', '6', '7', '8' };
+	
+	public final static String LOCALE = "___locale";
+	public final static int MAX_AGE = 86400 * 365; // 默认一年时间 
+	
+	public final static String COOKIE_LOGIN = "___login";
+	
 	static {
-		webroot = getWebrootPath();
-		isResin = _checkResinVersion();
-		// 上传的临时目录
-		upload_tmp_path = webroot + "WEB-INF" + File.separator + "tmp"
-				+ File.separator;
-		try {
-			FileUtils.forceMkdir(new File(upload_tmp_path));
-		} catch (IOException excp) {
-		}
-
 		// BeanUtils对时间转换的初始化设置
 		ConvertUtils.register(new SqlDateConverter(null), java.sql.Date.class);
 		ConvertUtils.register(new Converter() {
 			SimpleDateFormat sdf = new SimpleDateFormat("yyyy-M-d");
-			SimpleDateFormat sdf_time = new SimpleDateFormat("yyyy-M-d H:m");
+			SimpleDateFormat sdfTime = new SimpleDateFormat("yyyy-M-d H:m");
 
 			@SuppressWarnings("rawtypes")
 			public Object convert(Class type, Object value) {
@@ -92,7 +85,7 @@ public class RequestContext {
 				if (value instanceof Date)
 					return (value);
 				try {
-					return sdf_time.parse(value.toString());
+					return sdfTime.parse(value.toString());
 				} catch (ParseException e) {
 					try {
 						return sdf.parse(value.toString());
@@ -103,19 +96,7 @@ public class RequestContext {
 			}
 		}, java.util.Date.class);
 	}
-
-	private final static String getWebrootPath() {
-		String root = RequestContext.class.getResource("/").getFile();
-		try {
-			root = new File(root).getParentFile().getParentFile()
-					.getCanonicalPath();
-			root += File.separator;
-		} catch (IOException e) {
-			throw new RuntimeException(e);
-		}
-		return root;
-	}
-
+	
 	/**
 	 * 初始化请求上下文，默认转码为UTF8
 	 * 
@@ -123,50 +104,37 @@ public class RequestContext {
 	 * @param req
 	 * @param res
 	 */
-	public static RequestContext begin(ServletContext ctx,
-			HttpServletRequest req, HttpServletResponse res) {
-		RequestContext rc = new RequestContext();
-		rc.context = ctx;
-		rc.request = _autoUploadRequest(encodeRequest(req));// 是否是上传请求
-
-		rc.response = res;
-		rc.response.setCharacterEncoding(UTF_8);
+	public static WebContext begin(ServletContext servletContext, 
+			HttpServletRequest request, HttpServletResponse response) {
+		WebContext wc = new WebContext();
 		
-		// 保存request_locale参数设置
-		rc.saveLocaleFromRequest();
-
-		rc.session = req.getSession(false); //默认不创建session
-		//rc.session = req.getSession();
-		rc.cookies = new HashMap<String, Cookie>();// 获取cookie
-		Cookie[] cookies = req.getCookies();
+		wc.context = servletContext;
+		wc.request = autoUploadRequest(encodeRequest(request));// 是否是上传请求
+		wc.response = response;
+		
+		wc.response.setCharacterEncoding(UTF_8);
+		wc.session = request.getSession(false); //默认不创建session
+		//wc.session = req.getSession();
+		wc.cookies = new HashMap<String, Cookie>();// 获取cookie
+		Cookie[] cookies = request.getCookies();
 		if (cookies != null) {
 			for (Cookie ck : cookies) {
-				rc.cookies.put(ck.getName(), ck);
+				wc.cookies.put(ck.getName(), ck);
 			}
 		}
 		
-		// 处理locale
-		rc.saveLocaleFromRequest();
+		// 保存request_locale参数设置
+		wc.saveLocaleFromRequest();
 		
-		contexts.set(rc);
-		return rc;
+		CONTEXTS.set(wc);
+		return wc;
 	}
-
-	/**
-	 * 获取当前请求的上下文
-	 * 
-	 * @return
-	 */
-	public static RequestContext get() {
-		return contexts.get();
-	}
-
+	
 	/**
 	 * 删除上传临时文件，清除context上下文。
 	 */
 	public void end() {
-		String tmpPath = (String) request
-				.getAttribute(TEMP_UPLOAD_PATH_ATTR_NAME);
+		String tmpPath = (String) request.getAttribute(TEMP_UPLOAD_FILE);
 		if (tmpPath != null) {
 			try {
 				FileUtils.deleteDirectory(new File(tmpPath));
@@ -179,37 +147,34 @@ public class RequestContext {
 		this.response = null;
 		this.session = null;
 		this.cookies = null;
-		contexts.remove();
-	}
-	
-	public static final String LOCALE = "___locale";
-	
-	public Locale getLocale() {
-		Cookie cookie = getCookie(LOCALE);
-		if (cookie != null) {
-			return LocaleUtils.toLocale(cookie.getValue());
-		}
 		
-		return request.getLocale();
+		CONTEXTS.remove();
 	}
 	
-	public void setLocale(String localeValue) {
-		if (localeValue != null) {
-			Locale locale = null;
+	/**
+	 * 自动文件上传请求的封装
+	 * 
+	 * @param req
+	 * @return
+	 */
+	private static HttpServletRequest autoUploadRequest(HttpServletRequest request) {
+		if (isMultipart(request)) {
+			String path = System.getProperty("java.io.tmpdir") + RandomStringUtils.randomAlphanumeric(10);
+			File dir = new File(path);
+			if (!dir.exists() && !dir.isDirectory())
+				dir.mkdirs();
 			try {
-				locale = LocaleUtils.toLocale(localeValue);
-				setCookie(LOCALE, locale.getLanguage() + "_" + locale.getCountry(), RequestContext.MAX_AGE, true);
-			} catch (Exception e) {
-				log.warn("setLocale is error, localeValue=" + localeValue + "is not used.");
+				request.setAttribute(TEMP_UPLOAD_FILE, dir.getCanonicalPath());
+				return new MultipartRequest(request, dir.getCanonicalPath(), maxSize, UTF_8);
+			} catch (NullPointerException e) {
+			} catch (IOException e) {
+				log.error("Failed to save upload files into temp directory: " + path, e);
 			}
 		}
+		
+		return request;
 	}
 	
-	public void saveLocaleFromRequest() {
-		String request_locale = getParam("request_locale");
-		setLocale(request_locale);
-	}
-
 	/**
 	 * 自动编码处理
 	 * 
@@ -219,50 +184,58 @@ public class RequestContext {
 	private static HttpServletRequest encodeRequest(HttpServletRequest req) {
 		if (req instanceof RequestProxy)
 			return req;
-		HttpServletRequest auto_encoding_req = req;
+		HttpServletRequest autoEncodingReq = req;
 		if ("POST".equalsIgnoreCase(req.getMethod())) {
 			try {
-				auto_encoding_req.setCharacterEncoding(UTF_8);
+				autoEncodingReq.setCharacterEncoding(UTF_8);
 			} catch (UnsupportedEncodingException e) {
 			}
-		} else if (!isResin)
-			auto_encoding_req = new RequestProxy(req, UTF_8);
+		}
 
-		return auto_encoding_req;
+		return autoEncodingReq;
 	}
 
 	/**
-	 * 自动文件上传请求的封装
-	 * 
-	 * @param req
-	 * @return
+	 * @return the maxSize
 	 */
-	private static HttpServletRequest _autoUploadRequest(HttpServletRequest req) {
-		if (isMultipart(req)) {
-			String path = upload_tmp_path
-					+ RandomStringUtils.randomAlphanumeric(10);
-			File dir = new File(path);
-			if (!dir.exists() && !dir.isDirectory())
-				dir.mkdirs();
-			try {
-				req.setAttribute(TEMP_UPLOAD_PATH_ATTR_NAME, path);
-				return new MultipartRequest(req, dir.getCanonicalPath(),
-						MAX_FILE_SIZE, UTF_8);
-			} catch (NullPointerException e) {
-			} catch (IOException e) {
-				log.error("Failed to save upload files into temp directory: "
-						+ path, e);
-			}
-		}
-		return req;
+	public static int getMaxSize() {
+		return maxSize;
 	}
 
-	public long getId() {
-		return getParam("id", 0L);
+	/**
+	 * @param maxSize the maxSize to set
+	 */
+	public static void setMaxSize(int maxSize) {
+		WebContext.maxSize = maxSize;
 	}
-	
-	public String getIp() {
-		return RequestUtils.getRemoteAddr(request);
+
+	/**
+	 * 获取当前请求的上下文
+	 * 
+	 * @return
+	 */
+	public static WebContext get() {
+		return CONTEXTS.get();
+	}
+
+	public ServletContext getContext() {
+		return context;
+	}
+
+	public HttpServletRequest getRequest() {
+		return request;
+	}
+
+	public HttpServletResponse getResponse() {
+		return response;
+	}
+
+	public HttpSession getSession() {
+		return session;
+	}
+
+	public HttpSession getSession(boolean create) {
+		return (session == null && create) ? (session = request.getSession()) : session;
 	}
 	
 	public String getQueryString() {
@@ -273,52 +246,112 @@ public class RequestContext {
 	public Enumeration<String> getParams() {
 		return request.getParameterNames();
 	}
-	
+
 	public String getParam(String name) {
 		return request.getParameter(name);
 	}
-
-	public String getParam(String name, String... def_value) {
+	
+	public String getParam(String name, String... defValue) {
 		String v = request.getParameter(name);
-		return (v != null) ? v : ((def_value.length > 0) ? def_value[0] : null);
+		return (v != null) ? v : ((defValue.length > 0) ? defValue[0] : null);
 	}
 
-	public long getParam(String name, long def_value) {
-		return NumberUtils.toLong(getParam(name), def_value);
+	public long getParam(String name, long defValue) {
+		return NumberUtils.toLong(getParam(name), defValue);
 	}
 
-	public int getParam(String name, int def_value) {
-		return NumberUtils.toInt(getParam(name), def_value);
+	public int getParam(String name, int defValue) {
+		return NumberUtils.toInt(getParam(name), defValue);
 	}
 
-	public byte getParam(String name, byte def_value) {
-		return (byte) NumberUtils.toInt(getParam(name), def_value);
+	public byte getParam(String name, byte defValue) {
+		return NumberUtils.toByte(getParam(name), defValue);
 	}
 
 	public String[] getParams(String name) {
 		return request.getParameterValues(name);
 	}
 
-	public void redirect(String uri) throws IOException {
-		response.sendRedirect(uri);
+	public Object getRequestAttr(String name) {
+		HttpServletRequest request = getRequest();
+		return (request != null) ? request.getAttribute(name) : null;
+	}
+
+	public void setRequestAttr(String key, Object value) {
+		request.setAttribute(key, value);
+	}
+
+	public Object getSessionAttr(String name) {
+		HttpSession ssn = getSession();
+		return (ssn != null) ? ssn.getAttribute(name) : null;
+	}
+
+	public void setSessionAttr(String key, Object value) {
+		HttpSession ssn = getSession(true);
+		ssn.setAttribute(key, value);
+	}
+	
+	public Cookie getCookie(String name) {
+		return cookies.get(name);
+	}
+	
+	public void setCookie(String name, String value, int maxAge, boolean allSubDomain) {
+		RequestUtils.setCookie(request, response, name, value, maxAge, allSubDomain);
+	}
+
+	public void deleteCookie(String name, boolean all_domain) {
+		RequestUtils.deleteCookie(request, response, name, all_domain);
+	}
+
+	public String getHeader(String name) {
+		return request.getHeader(name);
+	}
+
+	public void setHeader(String name, String value) {
+		response.setHeader(name, value);
+	}
+
+	public void setHeader(String name, int value) {
+		response.setIntHeader(name, value);
+	}
+
+	public void setHeader(String name, long value) {
+		response.setDateHeader(name, value);
 	}
 
 	public void forward(String uri) throws ServletException, IOException {
 		RequestDispatcher rd = context.getRequestDispatcher(uri);
 		rd.forward(request, response);
 	}
+	
+	public void redirect(String uri) throws IOException {
+		response.sendRedirect(uri);
+	}
 
 	public void include(String uri) throws ServletException, IOException {
 		RequestDispatcher rd = context.getRequestDispatcher(uri);
 		rd.include(request, response);
 	}
+	
+	public static boolean isMultipart(HttpServletRequest request) {
+		return ((request.getContentType() != null) && 
+				(request.getContentType().toLowerCase().startsWith("multipart")));
+	}
 
 	public boolean isUpload() {
 		return (request instanceof MultipartRequest);
 	}
-	
+
 	public boolean isRobot() {
 		return RequestUtils.isRobot(request);
+	}
+	
+	public long getId() {
+		return getParam("id", 0L);
+	}
+
+	public String getIp() {
+		return RequestUtils.getRemoteAddr(request);
 	}
 
 	public File getFile(String fieldName) {
@@ -329,15 +362,71 @@ public class RequestContext {
 
 	public File getImage(String fieldname) {
 		File imgFile = getFile(fieldname);
-		return (imgFile != null && Multimedia.isImageFile(imgFile.getName())) ? imgFile
-				: null;
+		return (imgFile != null && Multimedia.isImageFile(imgFile.getName())) ? imgFile : null;
+	}
+	
+	public String getServletPath() {
+		return request.getServletPath();
 	}
 
-	public ActionException fromResource(String bundle, String key,
-			Object... args) {
-		String res = ResourceUtils.getStringForLocale(request.getLocale(),
-				bundle, key, args);
-		return new ActionException(res);
+	public String getURI() {
+		return request.getRequestURI();
+	}
+
+	public String getContextPath() {
+		return request.getContextPath();
+	}
+	
+	public static String getWebrootPath() {
+		String root = WebContext.class.getResource("/").getFile();
+		try {
+			root = new File(root).getParentFile().getParentFile().getCanonicalPath();
+			root += File.separator;
+		} catch (IOException e) {
+			throw new RuntimeException(e);
+		}
+		return root;
+	}
+	
+	/**
+	 * 从cookie中获取locale信息
+	 * @return
+	 */
+	public Locale getLocale() {
+		Cookie cookie = getCookie(LOCALE);
+		if (cookie != null) {
+			return LocaleUtils.toLocale(cookie.getValue());
+		}
+		
+		return request.getLocale();
+	}
+	
+	public void setLocale(String localeValue) {
+		setLocale(localeValue, MAX_AGE);
+	}
+	
+	/**
+	 * 将local信息存入cookie
+	 * @param localeValue
+	 */
+	public void setLocale(String localeValue, int maxAge) {
+		if (localeValue != null) {
+			Locale locale = null;
+			try {
+				locale = LocaleUtils.toLocale(localeValue);
+				setCookie(LOCALE, locale.getLanguage() + "_" + locale.getCountry(), maxAge, true);
+			} catch (Exception e) {
+				log.warn("setLocale is error, localeValue=" + localeValue + "is not used.");
+			}
+		}
+	}
+	
+	/**
+	 * 从url参数中获取locale并存入cookie
+	 */
+	public void saveLocaleFromRequest() {
+		String requestLocale = getParam("request_locale");
+		setLocale(requestLocale);
 	}
 
 	/**
@@ -375,6 +464,10 @@ public class RequestContext {
 	public void printJson(String key, Object value) throws IOException {
 		printJson(new String[] { key }, new Object[] { value });
 	}
+	
+	public void notFound() throws IOException {
+		error(HttpServletResponse.SC_NOT_FOUND);
+	}
 
 	public void error(int code, String... msg) throws IOException {
 		if (msg.length > 0)
@@ -387,100 +480,15 @@ public class RequestContext {
 		error(HttpServletResponse.SC_FORBIDDEN);
 	}
 
-	public void notFound() throws IOException {
-		error(HttpServletResponse.SC_NOT_FOUND);
-	}
-	
-	public Object getRequestAttr(String attr) {
-		HttpServletRequest request = getRequest();
-		return (request != null) ? request.getAttribute(attr) : null;
-	}
-
-	public ServletContext getContext() {
-		return context;
-	}
-
-	public HttpSession getSession() {
-		return session;
-	}
-
-	public HttpSession getSession(boolean create) {
-		return (session == null && create) ? (session = request.getSession())
-				: session;
-	}
-	
-	public Object getSessionAttr(String attr) {
-		HttpSession ssn = getSession();
-		return (ssn!=null)?ssn.getAttribute(attr):null;
-	}
-
-	public HttpServletRequest getRequest() {
-		return request;
-	}
-	
-	public void setRequestAttr(String key, Object value) {
-		request.setAttribute(key, value);
-	}
-
-	public HttpServletResponse getResponse() {
-		return response;
-	}
-
-	public Cookie getCookie(String name) {
-		return cookies.get(name);
-	}
-
-	public void setCookie(String name, String value, int max_age,
-			boolean all_sub_domain) {
-		RequestUtils.setCookie(request, response, name, value, max_age,
-				all_sub_domain);
-	}
-
-	public void deleteCookie(String name, boolean all_domain) {
-		RequestUtils.deleteCookie(request, response, name, all_domain);
-	}
-
-	public String getHeader(String name) {
-		return request.getHeader(name);
-	}
-
-	public void setHeader(String name, String value) {
-		response.setHeader(name, value);
-	}
-
-	public void setHeader(String name, int value) {
-		response.setIntHeader(name, value);
-	}
-
-	public void setHeader(String name, long value) {
-		response.setDateHeader(name, value);
-	}
-	
 	public void closeCache() {
 		setHeader("Pragma", "No-cache");
 		setHeader("Cache-Control", "no-cache");
 		setHeader("Expires", 0L);
 	}
 
-	public String getServletPath() {
-		return request.getServletPath();
-	}
-
-	public String getURI() {
-		return request.getRequestURI();
-	}
-
-	public String getContextPath() {
-		return request.getContextPath();
-	}
-	
-	/**
-	 * 返回Web应用的路径
-	 * 
-	 * @return
-	 */
-	public static String getWebroot() {
-		return webroot;
+	public ActionException fromResource(String bundle, String key, Object... args) {
+		String res = ResourceUtils.getStringForLocale(request.getLocale(), bundle, key, args);
+		return new ActionException(res);
 	}
 	
 	/**
@@ -520,58 +528,8 @@ public class RequestContext {
 			}
 			return t;
 		}
-	}	
-
-	/**
-	 * 3.0 以上版本的 Resin 无需对URL参数进行转码
-	 * 
-	 * @return
-	 */
-	private final static boolean _checkResinVersion() {
-		try {
-			Class<?> verClass = Class.forName("com.caucho.Version");
-			String ver = (String) verClass.getDeclaredField("VERSION").get(
-					verClass);
-			String mainVer = ver.substring(0, ver.lastIndexOf('.'));
-			/**
-			 * float fVer = Float.parseFloat(mainVer);
-			 * System.out.println("----------------> " + fVer);
-			 */
-			return Float.parseFloat(mainVer) > 3.0;
-		} catch (Throwable t) {
-		}
-		return false;
-	}
-
-	private static boolean isMultipart(HttpServletRequest req) {
-		return ((req.getContentType() != null) && (req.getContentType()
-				.toLowerCase().startsWith("multipart")));
 	}
 	
-	public final static String COOKIE_LOGIN = "fensyid";
-	public final static int MAX_AGE = 86400 * 365;
-	public final static byte[] E_KEY = new byte[] { '1', '2', '3', '4', '5', '6', '7', '8' };
-	
-	/**
-	 * 保存登录信息
-	 * 
-	 * @param req
-	 * @param res
-	 * @param user
-	 * @param save
-	 */
-	public void saveUserInCookie(IUser user, boolean save) {
-		String new_value = _genLoginKey(user, getIp(), getHeader("user-agent"));
-		int max_age = save ? MAX_AGE : -1;
-		deleteCookie(COOKIE_LOGIN, true);
-		setCookie(COOKIE_LOGIN, new_value, max_age, true);
-	}
-
-	public void deleteUserFromCookie() {
-		deleteCookie(COOKIE_LOGIN, true);
-	}
-	
-
 	/**
 	 * 从cookie中读取保存的用户信息
 	 * 
@@ -588,6 +546,28 @@ public class RequestContext {
 		}
 		return null;
 	}
+	
+	/**
+	 * 保存登录信息
+	 * 
+	 * @param req
+	 * @param res
+	 * @param user
+	 * @param save
+	 */
+	public void saveUserInCookie(IUser user, boolean save) {
+		String newValue = genLoginKey(user, getIp(), getHeader("user-agent"));
+		int maxAge = save ? MAX_AGE : -1;
+		deleteCookie(COOKIE_LOGIN, true);
+		setCookie(COOKIE_LOGIN, newValue, maxAge, true);
+	}
+
+	/**
+	 * 删除登录信息
+	 */
+	public void deleteUserFromCookie() {
+		deleteCookie(COOKIE_LOGIN, true);
+	}
 
 	/**
 	 * 从cookie中读取保存的用户信息
@@ -598,13 +578,13 @@ public class RequestContext {
 	public IUser getUserByUUID(String uuid) {
 		if (StringUtils.isBlank(uuid))
 			return null;
-		String ck = _decrypt(uuid);
+		String ck = decrypt(uuid);
 		final String[] items = StringUtils.split(ck, '|');
 		if (items.length == 5) {
 			String ua = getHeader("user-agent");
-			int ua_code = (ua == null) ? 0 : ua.hashCode();
-			int old_ua_code = Integer.parseInt(items[3]);
-			if (ua_code == old_ua_code) {
+			int uaCode = (ua == null) ? 0 : ua.hashCode();
+			int oldUaCode = Integer.parseInt(items[3]);
+			if (uaCode == oldUaCode) {
 				return new IUser() {
 					public boolean isBlocked() {
 						return false;
@@ -632,10 +612,10 @@ public class RequestContext {
 	 * 
 	 * @param user
 	 * @param ip
-	 * @param user_agent
+	 * @param userAgent
 	 * @return
 	 */
-	public static String _genLoginKey(IUser user, String ip, String user_agent) {
+	public static String genLoginKey(IUser user, String ip, String userAgent) {
 		StringBuilder sb = new StringBuilder();
 		sb.append(user.getId());
 		sb.append('|');
@@ -643,10 +623,10 @@ public class RequestContext {
 		sb.append('|');
 		sb.append(ip);
 		sb.append('|');
-		sb.append((user_agent == null) ? 0 : user_agent.hashCode());
+		sb.append((userAgent == null) ? 0 : userAgent.hashCode());
 		sb.append('|');
 		sb.append(System.currentTimeMillis());
-		return _encrypt(sb.toString());
+		return encrypt(sb.toString());
 	}
 
 	/**
@@ -656,11 +636,10 @@ public class RequestContext {
 	 * @return
 	 * @throws Exception
 	 */
-	public static String _encrypt(String value) {
+	public static String encrypt(String value) {
 		byte[] data = CryptUtils.encrypt(value.getBytes(), E_KEY);
 		try {
-			return URLEncoder.encode(new String(Base64.encodeBase64(data)),
-					UTF_8);
+			return URLEncoder.encode(new String(Base64.encodeBase64(data)), UTF_8);
 		} catch (UnsupportedEncodingException e) {
 			return null;
 		}
@@ -673,7 +652,7 @@ public class RequestContext {
 	 * @return
 	 * @throws Exception
 	 */
-	public static String _decrypt(String value) {
+	public static String decrypt(String value) {
 		try {
 			value = URLDecoder.decode(value, UTF_8);
 			if (StringUtils.isBlank(value))
@@ -690,11 +669,11 @@ public class RequestContext {
 	 * 
 	 */
 	private static class RequestProxy extends HttpServletRequestWrapper {
-		private String uri_encoding;
+		private String uriEncoding;
 
 		RequestProxy(HttpServletRequest request, String encoding) {
 			super(request);
-			this.uri_encoding = encoding;
+			this.uriEncoding = encoding;
 		}
 
 		/**
@@ -702,7 +681,7 @@ public class RequestContext {
 		 */
 		public String getParameter(String paramName) {
 			String value = super.getParameter(paramName);
-			return _decodeParamValue(value);
+			return decodeParamValue(value);
 		}
 
 		/**
@@ -711,7 +690,7 @@ public class RequestContext {
 		@SuppressWarnings({ "unchecked", "rawtypes" })
 		public Map<String, Object> getParameterMap() {
 			Map params = super.getParameterMap();
-			HashMap<String, Object> new_params = new HashMap<String, Object>();
+			HashMap<String, Object> newParams = new HashMap<String, Object>();
 			Iterator<String> iter = params.keySet().iterator();
 			while (iter.hasNext()) {
 				String key = (String) iter.next();
@@ -720,26 +699,26 @@ public class RequestContext {
 					String[] values = (String[]) params.get(key);
 					String[] new_values = new String[values.length];
 					for (int i = 0; i < values.length; i++)
-						new_values[i] = _decodeParamValue(values[i]);
+						new_values[i] = decodeParamValue(values[i]);
 
-					new_params.put(key, new_values);
+					newParams.put(key, new_values);
 				} else {
 					String value = (String) params.get(key);
-					String new_value = _decodeParamValue(value);
-					if (new_value != null)
-						new_params.put(key, new_value);
+					String newValue = decodeParamValue(value);
+					if (newValue != null)
+						newParams.put(key, newValue);
 				}
 			}
-			return new_params;
+			return newParams;
 		}
 
 		/**
 		 * 重载getParameterValues
 		 */
-		public String[] getParameterValues(String arg0) {
-			String[] values = super.getParameterValues(arg0);
+		public String[] getParameterValues(String arg) {
+			String[] values = super.getParameterValues(arg);
 			for (int i = 0; values != null && i < values.length; i++)
-				values[i] = _decodeParamValue(values[i]);
+				values[i] = decodeParamValue(values[i]);
 			return values;
 		}
 
@@ -749,16 +728,15 @@ public class RequestContext {
 		 * @param value
 		 * @return
 		 */
-		private String _decodeParamValue(String value) {
-			if (StringUtils.isBlank(value) || StringUtils.isBlank(uri_encoding)
+		private String decodeParamValue(String value) {
+			if (StringUtils.isBlank(value) || StringUtils.isBlank(uriEncoding)
 					|| StringUtils.isNumeric(value))
 				return value;
 			try {
-				return new String(value.getBytes("8859_1"), uri_encoding);
+				return new String(value.getBytes("8859_1"), uriEncoding);
 			} catch (Exception e) {
 			}
 			return value;
 		}
-
 	}
 }

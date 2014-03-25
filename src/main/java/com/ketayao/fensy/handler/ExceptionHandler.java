@@ -8,7 +8,7 @@
  
 package com.ketayao.fensy.handler;
 
-import com.ketayao.fensy.mvc.RequestContext;
+import com.ketayao.fensy.mvc.WebContext;
 
 /** 
  * 	
@@ -17,5 +17,5 @@ import com.ketayao.fensy.mvc.RequestContext;
  */
 
 public interface ExceptionHandler {
-	String handle(RequestContext rc, Exception exception);
+	String handle(WebContext rc, Exception exception);
 }

@@ -1,6 +1,6 @@
 package com.ketayao.fensy.webutil;
 
-import com.ketayao.fensy.mvc.RequestContext;
+import com.ketayao.fensy.mvc.WebContext;
 
 /**
  * 文件存储服务
@@ -14,7 +14,7 @@ public class StorageService extends Storage {
 	private String read_path;
 	
 	public StorageService(String ext){
-		this.file_path = RequestContext.getWebroot() + 
+		this.file_path = WebContext.getWebrootPath() + 
 				"uploads" + java.io.File.separator + 
 				ext + java.io.File.separator;
 		this.read_path = "/uploads/" + ext + "/";

@@ -1,4 +1,4 @@
-package com.ketayao.fensy.mvc;
+package com.ketayao.fensy;
 
 public interface Constants {
 	/**
@@ -76,6 +76,11 @@ public interface Constants {
 	 * interceptor包路径
 	 */
 	String FENSY_INTERCEPTOR_CONFIG = "fensy.interceptorConfig";
+	
+	/**
+	 * 上传文件最大尺寸
+	 */
+	String FENSY_UPLOAD_FILE_MAX_SIZE = "fensy.uploadFileMaxSize";
 	
 	String DEFAULT_TEMPLATE_PATH = "/WEB-INF";
 	

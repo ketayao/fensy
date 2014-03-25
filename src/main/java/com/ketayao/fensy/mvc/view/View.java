@@ -12,7 +12,7 @@ import java.io.IOException;
 
 import javax.servlet.ServletException;
 
-import com.ketayao.fensy.mvc.RequestContext;
+import com.ketayao.fensy.mvc.WebContext;
 
 /** 
  * 	
@@ -20,7 +20,7 @@ import com.ketayao.fensy.mvc.RequestContext;
  * @since   2013年7月28日 下午7:48:32 
  */
 public interface View {
-	void render(RequestContext rc, String templatePath) throws IOException, ServletException;
+	void render(WebContext rc, String templatePath) throws IOException, ServletException;
 	
 	String getExt();
 }

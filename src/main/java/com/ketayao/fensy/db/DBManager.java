@@ -15,6 +15,7 @@ import org.apache.commons.beanutils.BeanUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.ketayao.fensy.Constants;
 import com.ketayao.fensy.exception.DBException;
 
 /**
@@ -25,7 +26,8 @@ public class DBManager {
 	private final static Logger log = LoggerFactory.getLogger(DBManager.class);
 	private final static ThreadLocal<Connection> conns = new ThreadLocal<Connection>();
 	private static DataSource dataSource;
-	private static boolean show_sql = false;
+	private static boolean showSql = false;
+	public static String prefixTableName = "";
 	
 	static {
 		initDataSource(null);
@@ -38,34 +40,39 @@ public class DBManager {
 	 */
 	private final static void initDataSource(Properties dbProperties) {
 		try {
-			if(dbProperties == null){
+			if (dbProperties == null) {
 				dbProperties = new Properties();
-				dbProperties.load(DBManager.class.getResourceAsStream("/db.properties"));
+				dbProperties.load(DBManager.class.getResourceAsStream("/" + Constants.FENSY_CONFIG_FILE));
 			}
-			Properties cp_props = new Properties();
-			for(Object key : dbProperties.keySet()) {
-				String skey = (String)key;
-				if(skey.startsWith("jdbc.")){
+
+			Properties props = new Properties();
+			for (Object key : dbProperties.keySet()) {
+				String skey = (String) key;
+				
+				if (skey.startsWith("jdbc.")) {
 					String name = skey.substring(5);
-					cp_props.put(name, dbProperties.getProperty(skey));
-					if("show_sql".equalsIgnoreCase(name)){
-						show_sql = "true".equalsIgnoreCase(dbProperties.getProperty(skey));
+					props.put(name, dbProperties.getProperty(skey));
+					if ("showSql".equalsIgnoreCase(name)) {
+						showSql = "true".equalsIgnoreCase(dbProperties.getProperty(skey));
+					} else if ("prefixTableName".equalsIgnoreCase(name)) {
+						prefixTableName = dbProperties.getProperty(skey);
 					}
 				}
 			}
-			dataSource = (DataSource)Class.forName(cp_props.getProperty("datasource")).newInstance();
-			if(dataSource.getClass().getName().indexOf("c3p0")>0){
-				//Disable JMX in C3P0
-				System.setProperty("com.mchange.v2.c3p0.management.ManagementCoordinator", 
+			
+			dataSource = (DataSource) Class.forName(props.getProperty("dataSource")).newInstance();
+			if (dataSource.getClass().getName().indexOf("c3p0") > 0) {
+				// Disable JMX in C3P0
+				System.setProperty(
+						"com.mchange.v2.c3p0.management.ManagementCoordinator",
 						"com.mchange.v2.c3p0.management.NullManagementCoordinator");
 			}
 			log.info("Using DataSource : " + dataSource.getClass().getName());
-			BeanUtils.populate(dataSource, cp_props);// 将cp_props的值注入dataSource属性。
+			BeanUtils.populate(dataSource, props);// 将props的值注入dataSource属性。
 
 			Connection conn = getConnection();
 			DatabaseMetaData mdm = conn.getMetaData();
-			log.info("Connected to " + mdm.getDatabaseProductName() + 
-                              " " + mdm.getDatabaseProductVersion());
+			log.info("Connected to " + mdm.getDatabaseProductName() + " " + mdm.getDatabaseProductVersion());
 			closeConnection();
 		} catch (Exception e) {
 			throw new DBException(e);
@@ -84,14 +91,20 @@ public class DBManager {
 		}
 	}
 
+	/**
+	 * 获取连接
+	 * @return
+	 * @throws SQLException
+	 */
 	public final static Connection getConnection() throws SQLException {
 		Connection conn = conns.get();
 		if(conn == null || conn.isClosed()){
 			conn = dataSource.getConnection();
 			conns.set(conn);
 		}
-		return (show_sql && !Proxy.isProxyClass(conn.getClass()))?
-                      new _debugConnection(conn).getConnection():conn;
+		
+		return (showSql && !Proxy.isProxyClass(conn.getClass())) ? 
+				new DebugConnection(conn).getConnection() : conn;
 	}
 	
 	/**
@@ -107,19 +120,19 @@ public class DBManager {
 		} catch (SQLException e) {
 			log.error("Unabled to close connection!!! ", e);
 		}
-		conns.set(null);
+		conns.remove();
 	}
 
 	/**
 	 * 用于跟踪执行的SQL语句
 	 */
-	static class _debugConnection implements InvocationHandler {
+	static class DebugConnection implements InvocationHandler {
 		
-		private final static Logger log = LoggerFactory.getLogger(_debugConnection.class);
+		private final static Logger log = LoggerFactory.getLogger(DebugConnection.class);
 		
 		private Connection conn = null;
 
-		public _debugConnection(Connection conn) {
+		public DebugConnection(Connection conn) {
 			this.conn = conn;
 		}
 
@@ -128,8 +141,10 @@ public class DBManager {
 		 * @return Connection
 		 */
 		public Connection getConnection() {
-			return (Connection) Proxy.newProxyInstance(conn.getClass().getClassLoader(), 
-                             conn.getClass().getInterfaces(), this);
+			return (Connection) Proxy.newProxyInstance(
+						conn.getClass().getClassLoader(), 
+                        conn.getClass().getInterfaces(), 
+                        this);
 		}
 		
 		public Object invoke(Object proxy, Method m, Object[] args) throws Throwable {

@@ -17,7 +17,7 @@ import org.apache.commons.lang3.RandomStringUtils;
 import org.apache.commons.lang3.StringUtils;
 
 import com.ketayao.fensy.cache.CacheManager;
-import com.ketayao.fensy.mvc.RequestContext;
+import com.ketayao.fensy.mvc.WebContext;
 
 /**
  * //调用方法
@@ -40,7 +40,7 @@ public class ImageCaptchaService {
 	 * @param res
 	 * @throws IOException 
 	 */
-	public static void get(RequestContext ctx) throws IOException{
+	public static void get(WebContext ctx) throws IOException{
 		if(ctx.isRobot()){
 			ctx.forbidden();
 			return;
@@ -72,7 +72,7 @@ public class ImageCaptchaService {
 		return false;		
 	}
 	
-	private static String _generateRegKey(RequestContext ctx) {
+	private static String _generateRegKey(WebContext ctx) {
 		Cookie cke = ctx.getCookie(COOKIE_NAME);
 		String REG_VALUE = null;
 		if(cke==null||StringUtils.isBlank(cke.getValue())){
@@ -86,9 +86,9 @@ public class ImageCaptchaService {
 		code.replace('o', 'R');
 		code.replace('I', 'E');
 		code.replace('1', 'T');
-		CacheManager.set(CACHE_REGION, REG_VALUE, code);
+		CacheManager.put(CACHE_REGION, REG_VALUE, code);
 		if(ctx.getSession()!=null){
-			CacheManager.set(CACHE_REGION, ctx.getSession().getId(), code);
+			CacheManager.put(CACHE_REGION, ctx.getSession().getId(), code);
 		}
 		return code;
 	}

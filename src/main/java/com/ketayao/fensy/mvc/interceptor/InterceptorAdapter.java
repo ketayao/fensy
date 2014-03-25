@@ -10,7 +10,7 @@
  
 package com.ketayao.fensy.mvc.interceptor;
 
-import com.ketayao.fensy.mvc.RequestContext;
+import com.ketayao.fensy.mvc.WebContext;
 
 /** 
  * 	
@@ -23,7 +23,7 @@ public abstract class InterceptorAdapter implements Interceptor {
 	/**
 	 * This implementation always returns {@code true}.
 	 */
-	public boolean preHandle(RequestContext rc, Object handler)
+	public boolean preHandle(WebContext rc, Object handler)
 		throws Exception {
 		return true;
 	}
@@ -31,14 +31,14 @@ public abstract class InterceptorAdapter implements Interceptor {
 	/**
 	 * This implementation is empty.
 	 */
-	public void postHandle(RequestContext rc, Object handler, Object result)
+	public void postHandle(WebContext rc, Object handler, Object result)
 			throws Exception {
 	}
 
 	/**
 	 * This implementation is empty.
 	 */
-	public void afterCompletion(RequestContext rc, Object handler, Exception ex)
+	public void afterCompletion(WebContext rc, Object handler, Exception ex)
 			throws Exception {
 	}
 	

@@ -33,7 +33,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.ketayao.fensy.exception.FensyException;
-import com.ketayao.fensy.mvc.RequestContext;
+import com.ketayao.fensy.mvc.WebContext;
 
 import freemarker.ext.jsp.TaglibFactory;
 import freemarker.ext.servlet.AllHttpScopesHashModel;
@@ -144,7 +144,7 @@ public class FreeMarkerView implements View {
 		return (ow != null ? ow : ObjectWrapper.DEFAULT_WRAPPER);
 	}
     
-	protected SimpleHash buildTemplateModel(Map<String, Object> model, RequestContext rc) {
+	protected SimpleHash buildTemplateModel(Map<String, Object> model, WebContext rc) {
 		AllHttpScopesHashModel fmModel = new AllHttpScopesHashModel(getObjectWrapper(), rc.getContext(), rc.getRequest());
 		fmModel.put(FreemarkerServlet.KEY_JSP_TAGLIBS, this.taglibFactory);
 		fmModel.put(FreemarkerServlet.KEY_APPLICATION, this.servletContextHashModel);
@@ -193,10 +193,10 @@ public class FreeMarkerView implements View {
 	 * @param templatePath
 	 * @throws IOException
 	 * @throws ServletException  
-	 * @see com.ketayao.fensy.mvc.view.View#render(com.ketayao.fensy.mvc.RequestContext, java.lang.String)  
+	 * @see com.ketayao.fensy.mvc.view.View#render(com.ketayao.fensy.mvc.WebContext, java.lang.String)  
 	 */
 	@Override
-	public void render(RequestContext rc, String templatePath)
+	public void render(WebContext rc, String templatePath)
 			throws IOException, ServletException {
 		
 		init(rc.getContext());

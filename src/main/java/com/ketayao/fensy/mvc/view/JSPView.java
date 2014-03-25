@@ -13,7 +13,7 @@ import java.io.IOException;
 
 import javax.servlet.ServletException;
 
-import com.ketayao.fensy.mvc.RequestContext;
+import com.ketayao.fensy.mvc.WebContext;
 
 
 
@@ -29,10 +29,10 @@ public class JSPView implements View {
 	 * @param templatePath
 	 * @throws IOException
 	 * @throws ServletException  
-	 * @see com.ketayao.fensy.mvc.view.View#render(com.ketayao.fensy.mvc.RequestContext, java.lang.String)  
+	 * @see com.ketayao.fensy.mvc.view.View#render(com.ketayao.fensy.mvc.WebContext, java.lang.String)  
 	 */
 	@Override
-	public void render(RequestContext rc, String templatePath)
+	public void render(WebContext rc, String templatePath)
 			throws IOException, ServletException {
 		rc.forward(templatePath);
 	}
