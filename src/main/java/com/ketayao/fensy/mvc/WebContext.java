@@ -62,6 +62,7 @@ public class WebContext {
 	private HttpSession session;
 	private HttpServletRequest request;
 	private HttpServletResponse response;
+	private Locale locale;
 	private Map<String, Cookie> cookies;
 	
 	public final static byte[] E_KEY = new byte[] { '1', '2', '3', '4', '5', '6', '7', '8' };
@@ -70,6 +71,8 @@ public class WebContext {
 	public final static int MAX_AGE = 86400 * 365; // 默认一年时间 
 	
 	public final static String COOKIE_LOGIN = "___login";
+	
+	public final static String REQUEST_LOCALE_PARAM = "request_locale";
 	
 	static {
 		// BeanUtils对时间转换的初始化设置
@@ -112,9 +115,13 @@ public class WebContext {
 		wc.request = autoUploadRequest(encodeRequest(request));// 是否是上传请求
 		wc.response = response;
 		
+		// 保存request_locale参数设置
+		wc.saveLocale();
+		
 		wc.response.setCharacterEncoding(UTF_8);
 		wc.session = request.getSession(false); //默认不创建session
 		//wc.session = req.getSession();
+		
 		wc.cookies = new HashMap<String, Cookie>();// 获取cookie
 		Cookie[] cookies = request.getCookies();
 		if (cookies != null) {
@@ -122,9 +129,6 @@ public class WebContext {
 				wc.cookies.put(ck.getName(), ck);
 			}
 		}
-		
-		// 保存request_locale参数设置
-		wc.saveLocaleFromRequest();
 		
 		CONTEXTS.set(wc);
 		return wc;
@@ -147,6 +151,7 @@ public class WebContext {
 		this.response = null;
 		this.session = null;
 		this.cookies = null;
+		this.locale = null;
 		
 		CONTEXTS.remove();
 	}
@@ -393,6 +398,10 @@ public class WebContext {
 	 * @return
 	 */
 	public Locale getLocale() {
+		if (locale != null) {
+			return locale;
+		}
+		
 		Cookie cookie = getCookie(LOCALE);
 		if (cookie != null) {
 			return LocaleUtils.toLocale(cookie.getValue());
@@ -401,19 +410,19 @@ public class WebContext {
 		return request.getLocale();
 	}
 	
-	public void setLocale(String localeValue) {
-		setLocale(localeValue, MAX_AGE);
+	public void saveLocale(String localeValue) {
+		saveLocale(localeValue, MAX_AGE);
 	}
 	
 	/**
 	 * 将local信息存入cookie
 	 * @param localeValue
 	 */
-	public void setLocale(String localeValue, int maxAge) {
+	public void saveLocale(String localeValue, int maxAge) {
 		if (localeValue != null) {
-			Locale locale = null;
 			try {
 				locale = LocaleUtils.toLocale(localeValue);
+				response.setLocale(locale);// 放入请求
 				setCookie(LOCALE, locale.getLanguage() + "_" + locale.getCountry(), maxAge, true);
 			} catch (Exception e) {
 				log.warn("setLocale is error, localeValue=" + localeValue + "is not used.");
@@ -424,9 +433,9 @@ public class WebContext {
 	/**
 	 * 从url参数中获取locale并存入cookie
 	 */
-	public void saveLocaleFromRequest() {
-		String requestLocale = getParam("request_locale");
-		setLocale(requestLocale);
+	public void saveLocale() {
+		String requestLocale = getParam(REQUEST_LOCALE_PARAM);
+		saveLocale(requestLocale);
 	}
 
 	/**
