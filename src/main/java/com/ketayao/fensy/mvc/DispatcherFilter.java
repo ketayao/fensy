@@ -11,6 +11,7 @@ package com.ketayao.fensy.mvc;
 
 import java.io.File;
 import java.io.IOException;
+import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.util.ArrayList;
@@ -245,7 +246,11 @@ public class DispatcherFilter implements Filter {
 		try {
 			process(rc, reqURI);
 		} catch (Exception e) {
-			exceptionHandler.handle(rc, e);
+			try {
+				handleMethodReturn(rc, exceptionHandler.handle(rc, e));
+			} catch (Exception e1) {
+				throw new ServletException(e1);
+			}
 		} finally {
 			if (rc != null)
 				rc.end();
@@ -386,9 +391,12 @@ public class DispatcherFilter implements Filter {
 						+ (returnValue != null ? returnValue.toString()
 								: "NULL") + ";args=" + args);
 			}
+		} catch (InvocationTargetException e) {
+			exception = new Exception(e.getCause());
+			throw exception;
 		} catch (Exception e) {
 			exception = e;
-			throw e;
+			throw exception;
 		} finally {
 			// 倒序运行拦截器的afterCompletion方法
 			@SuppressWarnings("unchecked")
