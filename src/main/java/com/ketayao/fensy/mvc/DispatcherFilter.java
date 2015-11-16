@@ -9,38 +9,6 @@
  **/
 package com.ketayao.fensy.mvc;
 
-import java.io.File;
-import java.io.IOException;
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
-import java.lang.reflect.Modifier;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Map.Entry;
-import java.util.Set;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-
-import javax.servlet.Filter;
-import javax.servlet.FilterChain;
-import javax.servlet.FilterConfig;
-import javax.servlet.ServletContext;
-import javax.servlet.ServletException;
-import javax.servlet.ServletRequest;
-import javax.servlet.ServletResponse;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
-
-import org.apache.commons.lang3.StringUtils;
-import org.apache.commons.lang3.math.NumberUtils;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.ketayao.fensy.Constants;
 import com.ketayao.fensy.db.DBManager;
 import com.ketayao.fensy.exception.ActionException;
@@ -53,6 +21,23 @@ import com.ketayao.fensy.mvc.view.ViewMap;
 import com.ketayao.fensy.util.ClassUtils;
 import com.ketayao.fensy.util.Exceptions;
 import com.ketayao.fensy.util.PropertiesUtils;
+import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.math.NumberUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import javax.servlet.*;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+import java.io.File;
+import java.io.IOException;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
+import java.util.*;
+import java.util.Map.Entry;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * 
@@ -225,7 +210,7 @@ public class DispatcherFilter implements Filter {
 
         // 过滤URI前缀
         for (String ignoreURI : ignoreURIs) {
-            if (reqURI.startsWith(ignoreURI)) {
+            if (reqURI.startsWith(request.getContextPath() + ignoreURI)) {
                 chain.doFilter(request, response);
                 return;
             }
