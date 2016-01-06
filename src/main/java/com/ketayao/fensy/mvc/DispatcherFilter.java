@@ -9,6 +9,36 @@
  **/
 package com.ketayao.fensy.mvc;
 
+import java.io.File;
+import java.io.IOException;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
+import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
+import javax.servlet.Filter;
+import javax.servlet.FilterChain;
+import javax.servlet.FilterConfig;
+import javax.servlet.ServletContext;
+import javax.servlet.ServletException;
+import javax.servlet.ServletRequest;
+import javax.servlet.ServletResponse;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.ketayao.fensy.Constants;
 import com.ketayao.fensy.db.DBManager;
 import com.ketayao.fensy.exception.ActionException;
@@ -20,24 +50,9 @@ import com.ketayao.fensy.mvc.view.View;
 import com.ketayao.fensy.mvc.view.ViewMap;
 import com.ketayao.fensy.util.ClassUtils;
 import com.ketayao.fensy.util.Exceptions;
+import com.ketayao.fensy.util.NumberUtils;
 import com.ketayao.fensy.util.PropertiesUtils;
-import org.apache.commons.lang3.StringUtils;
-import org.apache.commons.lang3.math.NumberUtils;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import javax.servlet.*;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
-import java.io.File;
-import java.io.IOException;
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
-import java.lang.reflect.Modifier;
-import java.util.*;
-import java.util.Map.Entry;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
+import com.ketayao.fensy.util.StringUtils;
 
 /**
  * 
@@ -47,7 +62,7 @@ import java.util.regex.Pattern;
 public class DispatcherFilter implements Filter {
 
     private final static Logger                  log                    = LoggerFactory
-                                                                            .getLogger(DispatcherFilter.class);
+        .getLogger(DispatcherFilter.class);
 
     private ServletContext                       context;
 
@@ -194,15 +209,14 @@ public class DispatcherFilter implements Filter {
         }
 
         // 初始化action
-        List<String> actionPackages = Arrays.asList(StringUtils.split(
-            config.get(Constants.FENSY_ACTION), ','));
+        List<String> actionPackages = Arrays
+            .asList(StringUtils.split(config.get(Constants.FENSY_ACTION), ','));
         initActions(actionPackages);
     }
 
     @Override
-    public void doFilter(ServletRequest req, ServletResponse res, FilterChain chain)
-                                                                                    throws IOException,
-                                                                                    ServletException {
+    public void doFilter(ServletRequest req, ServletResponse res,
+                         FilterChain chain) throws IOException, ServletException {
         HttpServletRequest request = (HttpServletRequest) req;
         HttpServletResponse response = (HttpServletResponse) res;
 
@@ -291,9 +305,9 @@ public class DispatcherFilter implements Filter {
         // 查找methodOfAction
         Method methodOfAction = getActionMethod(action, actionMethodName);
         if (methodOfAction == null ||
-        // 假如不是post请求，并且还要访问post方法
-            (!rc.getRequest().getMethod().equalsIgnoreCase(Constants.REQUEST_POST) && !actionMethodName
-                .equalsIgnoreCase(methodOfAction.getName()))) {
+            // 假如不是post请求，并且还要访问post方法
+            (!rc.getRequest().getMethod().equalsIgnoreCase(Constants.REQUEST_POST)
+             && !actionMethodName.equalsIgnoreCase(methodOfAction.getName()))) {
             if (log.isDebugEnabled()) {
                 log.debug("requestURI=" + requestURI + "--->not found method Of Action");
             }
@@ -335,11 +349,9 @@ public class DispatcherFilter implements Filter {
                 case 2: // login(rc, String[] extParams) or get(rc, long id);
                     boolean isLong = methodOfAction.getParameterTypes()[1].equals(Long.class)
                                      || methodOfAction.getParameterTypes()[1].equals(long.class);
-                    returnValue = methodOfAction.invoke(
-                        action,
-                        rc,
-                        isLong ? NumberUtils.toLong(args.get(0), 1L) : args.toArray(new String[args
-                            .size()]));
+                    returnValue = methodOfAction.invoke(action, rc,
+                        isLong ? NumberUtils.toLong(args.get(0), 1L)
+                            : args.toArray(new String[args.size()]));
                     break;
                 default:
                     String message = "requestURI=" + requestURI
@@ -356,10 +368,10 @@ public class DispatcherFilter implements Filter {
 
             handleMethodReturn(rc, returnValue);
             if (log.isDebugEnabled()) {
-                log.debug("requestURI=" + requestURI + ";action=" + action + ";method="
-                          + actionMethodName + ";result="
-                          + (returnValue != null ? returnValue.toString() : "NULL") + ";args="
-                          + args);
+                log.debug(
+                    "requestURI=" + requestURI + ";action=" + action + ";method=" + actionMethodName
+                          + ";result=" + (returnValue != null ? returnValue.toString() : "NULL")
+                          + ";args=" + args);
             }
         } catch (InvocationTargetException e) {
             exception = new Exception(e.getCause());
@@ -675,7 +687,7 @@ public class DispatcherFilter implements Filter {
             String suffix = StringUtils.substringAfter(reg, "/*/");
             // /s/login
             String suri = StringUtils.substringAfter(uri, prefix);
-            suri = suri.substring(StringUtils.indexOf(suri, '/', 1) + 1);
+            suri = suri.substring(StringUtils.indexOf(suri, '/', 1, suri.length()) + 1);
             if (uri.startsWith(prefix) && suri.equals(suffix)) {
                 return true;
             }

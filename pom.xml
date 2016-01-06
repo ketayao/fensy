@@ -12,49 +12,32 @@
 		<scope>provided</scope>
 	</dependency>
 	
-    <!-- db -->          	
+	<!-- cache -->
 	<dependency>
 		<groupId>net.sf.ehcache</groupId>
 		<artifactId>ehcache-core</artifactId>
 		<version>2.6.6</version>
-	</dependency>
+		<scope>test</scope>
+	</dependency>	
+	
+    <!-- db -->          	
 	<dependency>
 		<groupId>commons-dbutils</groupId>
 		<artifactId>commons-dbutils</artifactId>
-		<version>1.5</version>
-	</dependency>
-	<dependency>
-		<groupId>com.mchange</groupId>
-		<artifactId>c3p0</artifactId>
-		<version>0.9.2.1</version>
+		<version>1.6</version>
 	</dependency>
 	<dependency>
 		<groupId>mysql</groupId>
 		<artifactId>mysql-connector-java</artifactId>
-		<scope>test</scope>
 		<version>5.1.9</version>
+		<scope>test</scope>
 	</dependency>
 	            	
-    <!-- utils -->     
-	<dependency>
-		<groupId>org.apache.commons</groupId>
-		<artifactId>commons-lang3</artifactId>
-		<version>3.1</version>
-	</dependency>  
+    <!-- utils -->
 	<dependency>
 		<groupId>commons-beanutils</groupId>
 		<artifactId>commons-beanutils</artifactId>
 		<version>1.8.3</version>
-	</dependency>
-	<dependency>
-		<groupId>commons-io</groupId>
-		<artifactId>commons-io</artifactId>
-		<version>2.4</version>
-	</dependency>
-	<dependency>
-		<groupId>commons-codec</groupId>
-		<artifactId>commons-codec</artifactId>
-		<version>1.8</version>
 	</dependency>
 
     <!-- log -->
@@ -67,6 +50,7 @@
 		<groupId>org.slf4j</groupId>
 		<artifactId>slf4j-simple</artifactId>
 		<version>1.7.5</version>
+		<scope>test</scope>
 	</dependency>
 	
 	<!-- upload -->
@@ -74,6 +58,7 @@
 		<groupId>com.servlets</groupId>
 		<artifactId>cos</artifactId>
 		<version>05Nov2002</version>
+		<scope>test</scope>
 	</dependency>
 	
 	<!-- template -->
@@ -81,6 +66,7 @@
 		<groupId>org.freemarker</groupId>
 		<artifactId>freemarker</artifactId>
 		<version>2.3.20</version>
+		<scope>test</scope>
 	</dependency>
      
 	<!-- test -->

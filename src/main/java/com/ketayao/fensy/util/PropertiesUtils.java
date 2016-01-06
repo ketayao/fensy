@@ -6,8 +6,6 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
 
-import org.apache.commons.lang3.BooleanUtils;
-import org.apache.commons.lang3.math.NumberUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -78,7 +76,7 @@ public class PropertiesUtils {
      * @return
      */
     public static int getNumber(Properties props, String key) {
-    	return NumberUtils.toInt(props.getProperty(key), 0);
+        return NumberUtils.toInt(props.getProperty(key), 0);
     }
 
     /**
@@ -88,6 +86,6 @@ public class PropertiesUtils {
      * @return
      */
     public static boolean getBoolean(Properties props, String key) {
-    	return BooleanUtils.toBoolean(props.getProperty(key));
+        return Boolean.parseBoolean(props.getProperty(key));
     }
 }
