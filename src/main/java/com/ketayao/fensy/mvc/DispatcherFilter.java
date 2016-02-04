@@ -632,7 +632,7 @@ public class DispatcherFilter implements Filter {
     private Method getActionMethod(Object action, String methodName) {
         // 不能直接调用init和destroy方法
         if (methodName.equals(Constants.ACTION_INIT_METHOD)
-            || methodName.equals(Constants.ACTION_INIT_METHOD)) {
+            || methodName.equals(Constants.ACTION_DESTROY_METHOD)) {
             return null;
         }
 
